@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 
 import fire
 from literegistry import RegistryClient, get_kvstore
+from literegistry.head_registry import is_head_registry_uri
 from literegistry.coop.redis import wait_for_redis as _literegistry_wait_for_redis
 
 
@@ -23,6 +24,18 @@ def _shutdown_requested(stop_file: str | Path | None, *, operation: str) -> None
     stop_path = Path(stop_file)
     if stop_path.is_file():
         raise RuntimeError(f"shutdown requested while {operation}: {stop_path}")
+
+
+async def _head_registry_ping(registry: str, *, timeout: float) -> None:
+    """Resolve and ping the live Redis selected by a LiteRegistry head URI."""
+
+    store = get_kvstore(registry, raise_on_error=True)
+    try:
+        ready = await asyncio.wait_for(store.ping(), timeout=timeout)
+        if ready is False:
+            raise ConnectionError("resolved Redis did not answer PING")
+    finally:
+        await store.close()
 
 
 def wait_for_redis(
@@ -42,11 +55,16 @@ def wait_for_redis(
         remaining = max(0.0, deadline - time.monotonic())
         attempt_timeout = min(poll_interval, remaining)
         try:
-            _literegistry_wait_for_redis(
-                registry,
-                timeout=attempt_timeout,
-                poll_interval=min(poll_interval, attempt_timeout),
-            )
+            if is_head_registry_uri(registry):
+                asyncio.run(
+                    _head_registry_ping(registry, timeout=attempt_timeout)
+                )
+            else:
+                _literegistry_wait_for_redis(
+                    registry,
+                    timeout=attempt_timeout,
+                    poll_interval=min(poll_interval, attempt_timeout),
+                )
         except (OSError, ValueError, ConnectionError, TimeoutError) as error:
             last_error = error
         else:

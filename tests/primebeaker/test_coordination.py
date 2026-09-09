@@ -39,6 +39,38 @@ def test_wait_for_redis_preserves_shutdown_file_cancellation(
         )
 
 
+def test_wait_for_redis_resolves_literegistry_head_uri(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state: dict[str, object] = {}
+
+    class Store:
+        async def ping(self) -> bool:
+            state["pinged"] = True
+            return True
+
+        async def close(self) -> None:
+            state["closed"] = True
+
+    def get_store(registry: str, **kwargs: object) -> Store:
+        state["registry"] = registry
+        state["kwargs"] = kwargs
+        return Store()
+
+    monkeypatch.setattr(coordination, "get_kvstore", get_store)
+
+    registry = "head+file:///weka/shared/services"
+    assert coordination.wait_for_redis(
+        registry, timeout=10, poll_interval=2
+    ) == registry
+    assert state == {
+        "registry": registry,
+        "kwargs": {"raise_on_error": True},
+        "pinged": True,
+        "closed": True,
+    }
+
+
 def test_service_counts_use_literegistry_live_roster(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -10,6 +10,8 @@ It includes:
 - all 15 runnable Verifiers environments and their HTTP tool clients;
 - package-local prompt templates, tool-call wire parsing, and tool schemas;
 - an immutable Prime-RL image catalog and reproducible Dockerfiles.
+- safe whole-topology checkpoint discovery and resume;
+- a thin CLI adapter over LiteRegistry's native Beaker service deployment.
 
 It does not import `datadev` or `jtc_data_commons`. Prime-RL owns model
 rendering and the GPU training runtime. Dataset production and evaluation are
@@ -108,6 +110,71 @@ configured inference nodes. The TOML's `inference.parallel.tp`, `.dp`, and
 Tool workers and Redis remain external services. `--required-service NAME=N`
 adds an exact startup barrier without bundling service deployment into the
 training package.
+
+## LiteRegistry services
+
+PrimeBeaker does not maintain a second service-stack implementation. The
+`services` command delegates directly to LiteRegistry's
+`literegistry-base-deployment` package, which owns gateway, Redis, Python,
+terminal, web search/fetch, cache, local-search, and vLLM deployment:
+
+```bash
+primebeaker services preview \
+  --head-registry=/weka/gfaria/registries/example \
+  --service-cluster=ai2/jupiter \
+  --python-replicas=2 \
+  --terminal-replicas=2 \
+  --web-search-replicas=2
+
+primebeaker services launch \
+  --head-registry=/weka/gfaria/registries/example \
+  --service-cluster=ai2/jupiter
+
+primebeaker services podman preview \
+  --head-registry=/weka/gfaria/registries/example \
+  --service-cluster=ai2/jupiter \
+  --podman-replicas=4 \
+  --docker-mirror-replicas=2
+```
+
+All service flags are passed into LiteRegistry's native
+`BaseDeploymentConfig`; PrimeBeaker adds no stack rendering or coordination
+logic. The `podman` subgroup similarly delegates to the native
+`literegistry-podman-beaker` package. The same operations remain available
+through those two upstream executables.
+
+Both native launchers use `literegistry.coop.ports` for collision-safe
+dynamic ports and child supervision, plus `literegistry.coop.endpoints` for
+healthy endpoint publication and shutdown cleanup. Pass the resulting
+`head+file://`, `head+sqlite://`, or `head+redis://` registry URI to
+`primebeaker rl preview|submit|resume --registry=...`; training resolves the
+current Redis endpoint through LiteRegistry rather than assuming a fixed port.
+
+## Resume a multi-node RL experiment
+
+Resume always creates a fresh complete topology. It first requires one step
+to have every trainer rank shard, trainer `.metadata`, and the orchestrator's
+`progress.pt`. It refuses to submit while any source job is active, preserves
+the W&B run ID, moves stale broadcast handshakes aside, and writes an attempt
+manifest under `<output_dir>/primebeaker_resume/`.
+
+With no `--resume-step`, the latest complete common checkpoint is selected:
+
+```bash
+primebeaker rl resume \
+  --from-experiment=01SOURCE \
+  --dry-run
+
+primebeaker rl resume \
+  --from-experiment=01SOURCE \
+  --resume-step=220 \
+  --registry=head+file:///weka/gfaria/registries/example
+```
+
+The source Beaker experiment supplies the image, workspace, clusters, Weka
+mount, output directory, gateway settings, and training TOML. Any corresponding
+resume flag is an explicit override. A source without an external registry
+must be given `--registry`; `primebeaker services launch` can create that stack.
 
 ## Multi-node SFT
 

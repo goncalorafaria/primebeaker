@@ -19,6 +19,8 @@ from primebeaker.multinode import (
     deployment_type,
 )
 from primebeaker.rl import BeakerRLBackend, RLLaunchRequest
+from primebeaker.resume import resume
+from primebeaker.services import LiteRegistryServices
 from primebeaker.sft import BeakerSFTBackend, SFTLaunchRequest
 
 
@@ -167,6 +169,8 @@ class TrainingProgram:
     def __init__(self, program: str) -> None:
         self.preview = partial(_launch, program, "preview")
         self.submit = partial(_launch, program, "submit")
+        if program == "rl":
+            self.resume = resume
 
 
 class PrimeBeakerCLI:
@@ -175,6 +179,7 @@ class PrimeBeakerCLI:
     def __init__(self) -> None:
         self.sft = TrainingProgram("sft")
         self.rl = TrainingProgram("rl")
+        self.services = LiteRegistryServices()
 
 
 def _serialize(value: Any) -> str:

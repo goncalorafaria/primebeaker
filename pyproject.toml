@@ -15,7 +15,7 @@ runtime = [
     "aiohttp",
     "datasets",
     "httpx",
-    "literegistry==1.0.47",
+    "literegistry[base_deployment,podman_beaker]==1.0.47",
     "uvicorn",
     "verifiers[harbor] @ git+https://github.com/PrimeIntellect-ai/verifiers.git@f646beb37eef51869f886f244456e3d07818e4d6",
 ]
