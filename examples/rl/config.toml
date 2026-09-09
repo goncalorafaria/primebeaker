@@ -1,0 +1,94 @@
+# Two-step RL smoke run using the service-free exact-label verifier.
+max_steps = 2
+seq_len = 1024
+output_dir = "outputs/example-rl"
+clean_output_dir = false
+
+[deployment]
+type = "single_node"
+gpus_per_node = 2
+num_train_gpus = 1
+num_infer_gpus = 1
+
+[model]
+name = "PrimeIntellect/Qwen3-0.6B"
+
+[wandb]
+project = "primebeaker-examples"
+name = "primebeaker-tiny-rl"
+tags = ["primebeaker", "example", "rl", "tiny-data"]
+
+[orchestrator]
+batch_size = 2
+group_size = 2
+max_off_policy_steps = 1
+oversampling_factor = 1
+
+[orchestrator.train.sampling]
+max_completion_tokens = 128
+temperature = 1.0
+
+[[orchestrator.train.source]]
+name = "tiny-label-train"
+
+[orchestrator.train.source.legacy]
+id = "primebeaker.environments.jtc_label_env"
+
+[orchestrator.train.source.legacy.args]
+dataset = "examples/rl/data/train.jsonl"
+split = "train"
+
+[orchestrator.eval]
+interval = 1
+
+[orchestrator.eval.sampling]
+max_completion_tokens = 128
+temperature = 0.0
+
+[[orchestrator.eval.source]]
+name = "tiny-label-validation"
+num_examples = 1
+group_size = 1
+
+[orchestrator.eval.source.legacy]
+id = "primebeaker.environments.jtc_label_env"
+
+[orchestrator.eval.source.legacy.args]
+dataset = "examples/rl/data/validation.jsonl"
+split = "validation"
+
+[orchestrator.renderer]
+name = "prime-qwen3"
+
+[trainer.loss]
+type = "default"
+kl_tau = 0.0
+
+[trainer.optim]
+lr = 3.0e-6
+max_norm = 1.0
+weight_decay = 0.1
+
+[inference]
+gpu_memory_utilization = 0.8
+api_server_count = 1
+enable_prefix_caching = true
+
+[inference.parallel]
+tp = 1
+dp = 1
+
+[inference.deployment]
+type = "single_node"
+gpus_per_node = 1
+
+[weight_broadcast]
+type = "nccl"
+
+[ckpt]
+interval = 1
+keep_last = 1
+resume_step = -1
+
+[log]
+level = "info"

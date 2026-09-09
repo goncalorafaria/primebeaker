@@ -1,0 +1,78 @@
+# Two-step SFT smoke run over the tiny JSONL fixtures in ./data.
+max_steps = 2
+output_dir = "outputs/example-sft"
+clean_output_dir = false
+matmul_precision = "high"
+
+[deployment]
+type = "single_node"
+num_gpus = 2
+gpus_per_node = 2
+
+[model]
+name = "PrimeIntellect/Qwen3-0.6B"
+seq_len = 1024
+
+[tokenizer]
+name = "PrimeIntellect/Qwen3-0.6B"
+
+[renderer]
+name = "prime-qwen3"
+
+[data]
+type = "sft"
+name = "examples/sft/data"
+splits = ["train"]
+seq_len = 1024
+batch_size = 2
+micro_batch_size = 1
+shuffle = true
+seed = 42
+
+[data.loss_mask]
+system = false
+user = false
+assistant = true
+tool = false
+
+[val]
+interval = 1
+eval_on_start = true
+
+[val.data]
+type = "sft"
+name = "examples/sft/data"
+splits = ["validation"]
+seq_len = 1024
+batch_size = 1
+micro_batch_size = 1
+shuffle = false
+seed = 42
+
+[val.data.loss_mask]
+system = false
+user = false
+assistant = true
+tool = false
+
+[optim]
+type = "adamw"
+lr = 2.0e-5
+weight_decay = 0.1
+max_norm = 1.0
+
+[ckpt]
+interval = 1
+keep_last = 1
+resume_step = -1
+
+[wandb]
+project = "primebeaker-examples"
+name = "primebeaker-tiny-sft"
+offline = true
+tags = ["primebeaker", "example", "sft", "tiny-data"]
+
+[log]
+level = "info"
+ranks_filter = [0]
+interval = 1.0

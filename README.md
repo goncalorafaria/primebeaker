@@ -40,6 +40,13 @@ The authenticated `beaker` executable and a Prime-RL GPU image are external
 requirements. See [`src/primebeaker/images/README.md`](src/primebeaker/images/README.md) for immutable image
 locations and exact rebuild/publish instructions.
 
+## Tiny runnable examples
+
+[`examples/`](examples/README.md) contains two-step SFT and RL setups. Each
+uses four complete training records and two complete validation records, preserving
+the existing data format without bundling a corpus. Both are ready for the
+Fire-based `preview` and `submit` commands documented there.
+
 ## Environments
 
 ```bash
