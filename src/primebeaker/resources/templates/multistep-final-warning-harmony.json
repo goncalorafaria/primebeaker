@@ -1,0 +1,14 @@
+{
+  "name": "multistep_final_warning_harmony",
+  "description": "Last-turn warning for Harmony/native-tool judges that must return strict JSON matching the judge prompt. Appended as a user message after the tool result. Variables: tool_content, tool_name, stdout, stderr, code, success.",
+  "input_variables": [
+    "tool_content",
+    "tool_name"
+  ],
+  "chat_template": [
+    {
+      "role": "user",
+      "content": "IMPORTANT: That was your last allowed {tool_name} tool call. Do not call {tool_name} again. Send a final reply that is ONLY a JSON object: {{\"feedback\": \"your concise justification citing the concrete terminal evidence\", \"label\": \"the rubric label\"}}"
+    }
+  ]
+}

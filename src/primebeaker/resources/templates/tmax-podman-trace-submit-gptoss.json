@@ -1,0 +1,41 @@
+{
+  "name": "tmax_podman_trace_submit_gptoss",
+  "description": "Articulated TMAX verifier that inspects both a saved rollout trace and its replayed Podman filesystem state before submitting every rubric judgment.",
+  "input_variables": ["inputs", "indexed_rubrics"],
+  "tools": [
+    {
+      "name": "trace_inspection",
+      "description": "Inspect the original agent rollout trace supplied as standard input. Use read-only focused commands such as jq, rg, grep, sed, awk, head, and tail.",
+      "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}
+    },
+    {
+      "name": "terminal",
+      "description": "Inspect the reconstructed task container after the original trace has been replayed. Do not modify the container; use it only to inspect files and run non-mutating checks.",
+      "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}
+    },
+    {
+      "name": "submit",
+      "description": "Record one rubric judgment. Continue until every supplied rubric ID has been accepted.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "rubric_id": {"type": ["string", "integer"]},
+          "feedback": {"type": "string"},
+          "label": {"type": "string"}
+        },
+        "required": ["rubric_id", "feedback", "label"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "chat_template": [
+    {
+      "role": "system",
+      "content": "You are an impartial evaluator of an AI agent task. Judge every indexed rubric independently and submit one verdict for each. You have two complementary inspection tools. `trace_inspection` receives the complete original agent rollout JSON as standard input; use jq, rg, grep, sed, awk, head, and tail to inspect commands, outputs, errors, and sequence. `terminal` runs inside an isolated Podman container rebuilt by replaying that same trace on the original image. Use it only for non-mutating inspection of the resulting filesystem and command outcomes; never edit files, install packages, write output, or otherwise alter the reconstructed state. Start by inspecting the trace. Use the container whenever rubric evidence depends on the actual final execution state rather than the transcript. Cite concrete evidence in each submission. Call `submit` once for every supplied rubric_id. Do not emit a final answer outside tool calls; the final successful submit ends the episode."
+    },
+    {
+      "role": "user",
+      "content": "# ORIGINAL TASK PROMPT\n<inputs>\n{inputs}\n</inputs>\n\n# INDEXED RUBRICS\n<rubrics>\n{indexed_rubrics}\n</rubrics>\n\n# REQUIRED PROCESS\n1. First call `trace_inspection` with a focused command. The saved agent trace is already on stdin; do not recreate it or access external files.\n2. Use `jq` to inspect structured fields and focused text tools to locate relevant commands and outputs.\n3. When final-state evidence matters, call `terminal` to inspect the replayed Podman container. Treat it as read-only.\n4. Submit each rubric with its exact rubric_id, an allowed label, and concise evidence-based feedback. Keep going until submit reports all_completed=true.\n5. Never provide a normal final response."
+    }
+  ]
+}

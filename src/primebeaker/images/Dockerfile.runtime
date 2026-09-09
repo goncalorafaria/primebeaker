@@ -1,0 +1,27 @@
+ARG BASE_IMAGE=prime-rl-base:01KZVDND2PYP538F5JSGJ469EC
+FROM ${BASE_IMAGE}
+
+USER root
+COPY . /opt/primebeaker-src/
+
+# Preserve the tested CUDA/Torch/vLLM solution. Install only the small service
+# layer needed by multi-node tool routing, then overlay PrimeBeaker without
+# re-resolving the GPU environment.
+RUN python3 -m pip install --no-cache-dir "literegistry==1.0.47" uvicorn \
+    && python3 -m pip install --no-cache-dir --no-deps -e /opt/primebeaker-src \
+    && python3 -c "import primebeaker, primebeaker.gateway; from primebeaker.environments import ENVIRONMENTS, load_environment_module; [load_environment_module(name) for name in ENVIRONMENTS]" \
+    && python3 -m primebeaker.multinode --help >/dev/null \
+    && bash -n /opt/primebeaker-src/src/primebeaker/multinode_rl_role.sh \
+    && bash -n /opt/primebeaker-src/src/primebeaker/multinode_sft_role.sh \
+    && command -v rl \
+    && command -v sft \
+    && command -v inference \
+    && command -v orchestrator \
+    && command -v vllm-router
+
+ENV PRIMEBEAKER_IMAGE_PROVENANCE=/opt/primebeaker-src/src/primebeaker/images/catalog.json
+LABEL org.opencontainers.image.title="PrimeBeaker Prime-RL training runtime"
+
+WORKDIR /weka
+ENTRYPOINT []
+CMD ["/bin/bash"]

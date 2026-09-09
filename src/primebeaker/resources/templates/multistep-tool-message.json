@@ -1,0 +1,13 @@
+{
+  "name": "multistep_tool_message",
+  "description": "Message appended to the conversation after each executed code block in the multi-step workflow. Default `tool` role. Available variables: tool_content (formatted+truncated stdout/stderr), stdout, stderr, code, success.",
+  "input_variables": [
+    "tool_content"
+  ],
+  "chat_template": [
+    {
+      "role": "tool",
+      "content": "{tool_content}"
+    }
+  ]
+}

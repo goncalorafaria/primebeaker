@@ -1,0 +1,51 @@
+from __future__ import annotations
+
+from pathlib import Path
+import tomllib
+
+from primebeaker.environments.registry import ENVIRONMENTS, load_environment_module
+from primebeaker.environments.tool_protocol import (
+    GPTOSS_TERMINAL_TOOL,
+    GPTOSS_WEBTERMINAL_TOOL,
+    parse_qwen_tool_calls,
+)
+from primebeaker.runtime.json_utils import extract_json_from_response
+
+
+ROOT = Path(__file__).resolve().parents[2]
+VERIFIERS_REVISION = "f646beb37eef51869f886f244456e3d07818e4d6"
+
+
+def test_every_registered_environment_has_a_factory() -> None:
+    modules = {load_environment_module(name) for name in ENVIRONMENTS}
+
+    assert len(modules) == 15
+    assert all(module.__name__.startswith("primebeaker.environments.") for module in modules)
+    assert all(callable(getattr(module, "load_environment", None)) for module in modules)
+
+
+def test_local_protocol_adapter_preserves_environment_wire_contract() -> None:
+    text = (
+        '<think>inspect</think><tool_call>{"name":"terminal",'
+        '"arguments":{"command":"rg -n \\"error\\""}}</tool_call>'
+    )
+    assert parse_qwen_tool_calls(text) == [
+        {"name": "terminal", "arguments": {"command": 'rg -n "error"'}}
+    ]
+    assert "standard input" in GPTOSS_TERMINAL_TOOL["description"]
+    assert "browse <url>" in GPTOSS_WEBTERMINAL_TOOL["description"]
+    assert "cat <asset-id>" in GPTOSS_WEBTERMINAL_TOOL["description"]
+
+
+def test_json_extraction_is_local_and_preserves_permissive_routing() -> None:
+    expected = {"feedback": "ok", "label": "pass"}
+    assert extract_json_from_response(expected) is expected
+    assert extract_json_from_response(f"prefix {expected!r}") is None
+    assert extract_json_from_response('prefix {"feedback":"ok","label":"pass"}') == expected
+
+
+def test_runtime_pins_the_cataloged_primerl_verifier_revision() -> None:
+    metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    runtime = metadata["project"]["optional-dependencies"]["runtime"]
+    verifier = next(item for item in runtime if item.startswith("verifiers[harbor]"))
+    assert verifier.endswith(f"@{VERIFIERS_REVISION}")

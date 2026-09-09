@@ -1,0 +1,37 @@
+{
+  "name": "jtc_io_judge",
+  "description": "Multi-turn chat template where the assistant writes evaluator code, receives tool output, then returns feedback and label.",
+  "input_variables": [
+    "inputs",
+    "output",
+    "evaluation_criteria",
+    "rubric",
+    "code",
+    "stdout",
+    "stderr",
+    "feedback",
+    "label"
+  ],
+  "chat_template": [
+    {
+      "role": "system",
+      "content": "You are an impartial evaluator. Evaluate the AI system output strictly against the provided inputs, evaluation criteria, and scoring rubric. You may optionally write and run Python code when it would help check the output more concretely. If code is run and you receive a tool result, use that result plus the rubric to produce the final evaluation. Do not add any text outside the requested XML tags in the final answer."
+    },
+    {
+      "role": "user",
+      "content": "# GOAL\nYour job is to evaluate a task carried out by an AI system powered by a large language model.\nYou will be provided with the inputs and output of the task, as well as the evaluation criteria and scoring rubric. Your task is to evaluate the output of the AI system based on the evaluation criteria and scoring rubric provided. You may optionally write and run code if it would help check the output more concretely.\n\n# INPUT\nBelow are the inputs required for performing the task:\n<inputs>\n{inputs}\n</inputs>\n\n# OUTPUT\nBelow is the output of the task:\n<output>\n{output}\n</output>\n\n# EVALUATION CRITERIA AND SCORING RUBRIC\nHere are the evaluation criteria and the rubric that you need to use for evaluating the task:\n<evaluation_criteria>\n{evaluation_criteria}\n</evaluation_criteria>\n\n<scoring_rubric>\n{rubric}\n</scoring_rubric>\n\n# INSTRUCTIONS FOR THE EVALUATION\n1. Understand the task, inputs, output, criteria, and scoring rubric.\n2. If code would help, write Python code that tests or inspects the output against the criteria as concretely as possible.\n3. If code is run in a tool, review the tool result before assigning the final label.\n4. Compare the output against the scoring rubric.\n5. Write verbal feedback justifying your evaluation, referring to specific aspects of the output and any relevant tool results.\n6. Assign a final label based on the scoring rubric.\n\n## FORMAT FOR THE OPTIONAL CODE STEP\nIf you choose to run code, first respond only with Python code in a single fenced code block.\n\n## FORMAT FOR THE FINAL EVALUATION\nWrite the verbal feedback inside <feedback> tags without any additional surrounding text.\nWrite the label inside <label> tags, without any additional surrounding text and always after the feedback.\n\nPlease accurately evaluate the task. Strictly adhere to the evaluation criteria and rubric."
+    },
+    {
+      "role": "assistant",
+      "content": "<code>```python\n{code}\n```</code>"
+    },
+    {
+      "role": "tool",
+      "content": "```stdout\n{stdout}\n```\n\n```stderr\n{stderr}\n```"
+    },
+    {
+      "role": "assistant",
+      "content": "<feedback>{feedback}</feedback>\n<label>{label}</label>"
+    }
+  ]
+}

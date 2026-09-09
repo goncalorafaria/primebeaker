@@ -1,0 +1,30 @@
+ARG BASE_IMAGE=prime-rl-base:01KZVDND2PYP538F5JSGJ469EC
+FROM ${BASE_IMAGE}
+
+USER root
+WORKDIR /app
+
+# The build context contains both an exact Prime-RL checkout and PrimeBeaker.
+COPY prime-rl/packages/prime-rl-configs/ /app/packages/prime-rl-configs/
+COPY prime-rl/src/prime_rl/ /app/src/prime_rl/
+COPY prime-rl/deps/renderers/renderers/ /app/deps/renderers/renderers/
+COPY primebeaker/ /opt/primebeaker-src/
+
+RUN python3 -m pip install --no-cache-dir "literegistry==1.0.47" uvicorn \
+    && python3 -m pip install --no-cache-dir --no-deps -e /opt/primebeaker-src \
+    && python3 -c "from prime_rl.configs.trainer import AdamWConfig; assert 'eps' in AdamWConfig.model_fields" \
+    && python3 -c "import primebeaker.gateway; from primebeaker.environments import ENVIRONMENTS, load_environment_module; [load_environment_module(name) for name in ENVIRONMENTS]" \
+    && python3 -m primebeaker.multinode --help >/dev/null \
+    && bash -n /opt/primebeaker-src/src/primebeaker/multinode_rl_role.sh \
+    && bash -n /opt/primebeaker-src/src/primebeaker/multinode_sft_role.sh \
+    && command -v rl \
+    && command -v sft \
+    && command -v inference \
+    && command -v orchestrator \
+    && command -v vllm-router
+
+LABEL org.opencontainers.image.title="PrimeBeaker with pinned Prime-RL source"
+
+WORKDIR /weka
+ENTRYPOINT []
+CMD ["/bin/bash"]

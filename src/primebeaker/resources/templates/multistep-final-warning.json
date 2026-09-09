@@ -1,0 +1,13 @@
+{
+  "name": "multistep_final_warning",
+  "description": "Tool-result message used on the model's LAST code turn: delivers the execution result AND warns that no more code turns remain, so the model must decide now. Default `user` role. Variables: tool_content, stdout, stderr, code, success.",
+  "input_variables": [
+    "tool_content"
+  ],
+  "chat_template": [
+    {
+      "role": "user",
+      "content": "{tool_content}\n\nIMPORTANT: This was your LAST code turn -- you have no more turns to run code. You MUST decide now. Respond ONLY with your verbal feedback inside <feedback> tags followed by the label inside <label> tags, with no code and no other text."
+    }
+  ]
+}

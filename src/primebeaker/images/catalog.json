@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "default_base_role": "prime_rl_training_base",
+  "roles": {
+    "prime_rl_training_base": {
+      "purpose": "Prime-RL v0.7.1.dev83 with the Qwen3.5 renderer, renderer-backed evaluation, and independent evaluation inflight capacity.",
+      "locations": [
+        {
+          "immutable_uri": "beaker://01KZVDND2PYP538F5JSGJ469EC",
+          "name": "goncalof/prime-rl-v071dev83-qwen35-renderer-eval-inflight",
+          "workspace": "ai2/oe-agents",
+          "created": "2026-08-12T16:42:35.989947Z",
+          "committed": "2026-08-12T16:42:40.065492Z",
+          "size_bytes": 21654822124
+        },
+        {
+          "immutable_uri": "beaker://01M0E15WYCV7T0J1CMCFPBQ21P",
+          "name": "goncalof/prime-rl-v071dev83-qwen35-renderer-eval-inflight-holmes",
+          "workspace": "ai2/oe-agents-holmes",
+          "created": "2026-08-19T22:09:59.244696Z",
+          "committed": "2026-08-19T22:10:00.962479Z",
+          "size_bytes": 21654822124
+        },
+        {
+          "immutable_uri": "beaker://01M126391QANBB0PH5JJAYYVBP",
+          "name": "goncalof/prime-rl-v071dev83-qwen35-renderer-eval-inflight-holmes-copy",
+          "workspace": "ai2/oe-agents-holmes",
+          "created": "2026-08-27T18:00:44.855358Z",
+          "committed": "2026-08-27T18:00:47.807826Z",
+          "size_bytes": 21654822124
+        }
+      ],
+      "rebuild_source": {
+        "repository": "https://github.com/goncalorafaria/prime-rl.git",
+        "branch": "feat/datadev-training-extensions",
+        "cataloged_revision": "171c669dac1c83b35559b4adbedf113569eb5579",
+        "upstream_base_revision": "2ffe374e0",
+        "upstream_tag": "v0.7.1.dev83",
+        "overlay_dockerfile": "Dockerfile.qwen35-renderer-eval-inflight",
+        "overlay_dockerfile_revision": "9a0464209"
+      },
+      "provenance_note": "The Beaker images predate the fork's cleaned-up commit history. Their immutable Beaker IDs preserve the deployed bytes; the cataloged fork revision is the maintained rebuild source, not a claim that its Git tree hash was embedded in the historical image."
+    },
+    "legacy_sft_root": {
+      "purpose": "Older root-user wrapper used by legacy SFT launch examples.",
+      "locations": [
+        {
+          "immutable_uri": "beaker://01KZ7H6KTYJ76ATBM91449SEKM",
+          "name": "goncalof/prime-rl-v071dev83-gb300-root-fi614",
+          "workspace": "ai2/oe-agents",
+          "created": "2026-08-04T23:19:37.053907Z",
+          "committed": "2026-08-04T23:24:28.434653Z",
+          "size_bytes": 21654512941
+        }
+      ]
+    }
+  }
+}

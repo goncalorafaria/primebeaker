@@ -1,0 +1,35 @@
+{
+  "name": "code_check_label_generation_gptoss",
+  "description": "GPT-OSS-compatible template for turning generated checker code and execution output into an explanation and label.",
+  "input_variables": [
+    "inputs",
+    "output",
+    "evaluation_criteria",
+    "rubric",
+    "code",
+    "stdout",
+    "stderr"
+  ],
+  "chat_template": [
+    {
+      "role": "system",
+      "content": "You are an impartial evaluator. Evaluate the AI system output strictly against the provided inputs, evaluation criteria, scoring rubric, and Python execution result. Do not add any text outside the requested XML tags in the final answer."
+    },
+    {
+      "role": "user",
+      "content": "# GOAL\nYour job is to evaluate a task carried out by an AI system powered by a large language model.\nYou will be provided with the inputs and output of the task, as well as the evaluation criteria and scoring rubric. You will also be given Python checker code and its execution result for this exact output. Use the execution result plus the rubric to produce the final evaluation.\n\n# INPUT\nBelow are the inputs required for performing the task:\n<inputs>\n{inputs}\n</inputs>\n\n# OUTPUT\nBelow is the output of the task:\n<output>\n{output}\n</output>\n\n# EVALUATION CRITERIA AND SCORING RUBRIC\nHere are the evaluation criteria and the rubric that you need to use for evaluating the task:\n<evaluation_criteria>\n{evaluation_criteria}\n</evaluation_criteria>\n\n<scoring_rubric>\n{rubric}\n</scoring_rubric>\n\n# INSTRUCTIONS FOR THE EVALUATION\n1. Understand the task, inputs, output, criteria, and scoring rubric.\n2. Review the Python checker code and execution result.\n3. Compare the output against the scoring rubric.\n4. Write a concise explanation justifying your evaluation, referring to specific aspects of the output and any relevant execution results.\n5. Assign a final label based on the scoring rubric."
+    },
+    {
+      "role": "assistant",
+      "content": "<code>```python\n{code}\n```</code>"
+    },
+    {
+      "role": "user",
+      "content": "The Python code above was executed. Here is the execution result:\n\n```stdout\n{stdout}\n```\n\n```stderr\n{stderr}\n```"
+    },
+    {
+      "role": "user",
+      "content": "Now write the final evaluation. Respond only with the verbal justification inside <explanation> tags followed by the label inside <label> tags. Do not write code. Do not include any text before, between, or after the XML tags.\n\nRequired format:\n<explanation>your explanation</explanation>\n<label>your label</label>"
+    }
+  ]
+}
