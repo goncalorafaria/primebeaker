@@ -1,6 +1,6 @@
 """Compatibility facade for the public :mod:`primebeaker.client` API."""
 
-from primebeaker.client import (
+from literegistry_tool_client import (
     FetchClient,
     FencedToolOutputDisplay,
     JudgeClient,
@@ -17,7 +17,7 @@ from primebeaker.client import (
     WebTerminalExecutionClient,
     code_output_to_tool_content,
 )
-from primebeaker.runtime.asset_store import AssetStore, WebAssetStore
+from literegistry_tool_client.asset_store import AssetStore, WebAssetStore
 
 __all__ = [
     "AssetStore",

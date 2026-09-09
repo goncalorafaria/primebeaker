@@ -21,7 +21,7 @@ from uuid import uuid4
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
 import verifiers as vf
 
-from primebeaker.client import JudgeClient
+from literegistry_tool_client import JudgeClient
 
 
 DEFAULT_RUBRICHUB_DATASET = "sojuL/RubricHub_v1"

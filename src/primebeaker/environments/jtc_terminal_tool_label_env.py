@@ -9,7 +9,7 @@ from typing import Any
 from datasets import Dataset, load_dataset
 import verifiers as vf
 
-from primebeaker.client import PlainJsonToolOutputDisplay, TerminalExecutionClient
+from literegistry_tool_client import PlainJsonToolOutputDisplay, TerminalExecutionClient
 from .tool_protocol import GPTOSS_TERMINAL_TOOL
 from primebeaker.runtime.templates import load_prompt_template, render_chat_template
 from .jtc_label_reward import extract_task_output

@@ -20,7 +20,7 @@ from verifiers.rubrics.math_rubric import MathRubric
 from verifiers.rubrics.rubric_group import RubricGroup
 from verifiers.utils.data_utils import extract_boxed_answer
 
-from primebeaker.client.reward_model import (
+from literegistry_tool_client.reward_model import (
     DEFAULT_CLASSIFY_SERVER_URL as CLASSIFY_SERVER_URL,
     RewardModelClient,
 )

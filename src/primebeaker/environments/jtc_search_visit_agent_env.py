@@ -6,7 +6,7 @@ from typing import Any
 
 import verifiers as vf
 
-from primebeaker.client import FetchClient, SearchClient
+from literegistry_tool_client import FetchClient, SearchClient
 from .jtc_search_agent_env import _load_dataset, answer_exact_match, final_json_format
 from .search_visit_agent_env import SearchVisitAgentEnv
 

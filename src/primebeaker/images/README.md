@@ -128,3 +128,15 @@ docker run --rm --gpus all --ipc=host \
   primebeaker-runtime:0.3.0 \
   -lc 'python -m primebeaker.environments >/tmp/environments && command -v rl && command -v sft'
 ```
+
+## LiteRegistry tool-client dependency
+
+Both Dockerfiles install `literegistry==1.0.48` and
+`literegistry-tool-client==0.1.0` from PyPI explicitly, before overlaying
+PrimeBeaker with `--no-deps`. PrimeBeaker environments import directly from
+`literegistry_tool_client`; the old `primebeaker.client` imports re-export the
+same classes. Build-time checks verify the client version, compatibility
+imports, and all environment imports.
+
+The image contains the installed clients and needs no LiteRegistry checkout.
+Existing SIFs and cataloged images must be rebuilt to include this change.

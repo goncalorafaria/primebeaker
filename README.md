@@ -7,7 +7,7 @@ It includes:
 - single-node and multi-node Beaker preview/submission;
 - heterogeneous RL placement (mixed trainer/inference node plus dedicated inference nodes);
 - distributed multi-node SFT through torchrun/FSDP;
-- all 15 runnable Verifiers environments and their HTTP tool clients;
+- all 15 runnable Verifiers environments, using LiteRegistry tool clients;
 - package-local prompt templates, tool-call wire parsing, and tool schemas;
 - an immutable Prime-RL image catalog and reproducible Dockerfiles.
 
@@ -18,6 +18,11 @@ datasets, or Hub datasets; PrimeBeaker does not include a Parquet adapter.
 Convert legacy `.jtasks.parquet` inputs to JSONL or a saved Hugging Face dataset before launch.
 
 ## Install
+
+Client implementations are provided by `literegistry-tool-client`, a standalone
+LiteRegistry companion. Existing `primebeaker.client` imports remain compatible;
+new callers can use `from literegistry_tool_client import SearchClient`.
+Normal installation resolves `literegistry-tool-client` from PyPI.
 
 For TOML and launch tooling:
 

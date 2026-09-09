@@ -14,7 +14,7 @@ from datasets import Dataset, load_dataset
 import verifiers as vf
 
 from primebeaker.runtime.templates import resolve_resource_path
-from primebeaker.client import (
+from literegistry_tool_client import (
     FetchClient,
     SearchClient,
     TerminalExecutionClient,

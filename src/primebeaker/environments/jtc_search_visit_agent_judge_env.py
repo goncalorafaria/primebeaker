@@ -13,7 +13,7 @@ from typing import Any, Protocol
 
 import verifiers as vf
 
-from primebeaker.client import FetchClient, JudgeClient, SearchClient
+from literegistry_tool_client import FetchClient, JudgeClient, SearchClient
 from .jtc_search_agent_env import (
     _has_tool_calls,
     _load_dataset,
