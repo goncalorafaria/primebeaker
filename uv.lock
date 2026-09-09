@@ -891,7 +891,7 @@ wheels = [
 
 [[package]]
 name = "literegistry"
-version = "1.0.47"
+version = "1.0.48"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -909,9 +909,56 @@ dependencies = [
     { name = "unidecode" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d9/42/08d063fd451b25c6212f7aef970e225dc3b68101eefc5cbf3f8923549af4/literegistry-1.0.47.tar.gz", hash = "sha256:c6022949ce689f70f6f5f8534b04a426733294efc007f56bd8666c770caa014d", size = 219237, upload-time = "2026-09-04T21:39:47.35Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cf/77/67878174c787c8ec19bb8f6455e93247399b6bce79620bef585f739e9e81/literegistry-1.0.48.tar.gz", hash = "sha256:96b39a24f194798b9bcd43e87782f145aa8fa2ca7fec1c30af5ba204567f62fd", size = 221430, upload-time = "2026-09-09T19:26:44.369Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/d2/74acc4dbbc8ab06af2abf2791306a3fcea86ed5444d8dc698d15caac59ce/literegistry-1.0.47-py3-none-any.whl", hash = "sha256:09c8b02c2cd1dfe4a85ace63793a5c46c45249b6c27c242fe42f9fe0c3f1d622", size = 188739, upload-time = "2026-09-04T21:39:46.157Z" },
+    { url = "https://files.pythonhosted.org/packages/96/3b/b24ac640b129dc86233fd44dca8bb19a1c56351d840590edd33195525151/literegistry-1.0.48-py3-none-any.whl", hash = "sha256:d3631d0b61d30fd5e3e9d9ad4a3318796fda61ae045178771d93005d3eaafbb6", size = 189776, upload-time = "2026-09-09T19:26:43.272Z" },
+]
+
+[package.optional-dependencies]
+base-deployment = [
+    { name = "literegistry-base-deployment" },
+]
+podman-beaker = [
+    { name = "literegistry-podman-beaker" },
+]
+
+[[package]]
+name = "literegistry-base-deployment"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "fire" },
+    { name = "literegistry" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7d/ba/0983a4ddb57d10cd0c6a05cff0507e9a56d009d6f848cfc6ab6d5af86c5a/literegistry_base_deployment-0.1.2.tar.gz", hash = "sha256:d44d73af38e5f8b496fc78dee4f11e74e4c791b05f7366bc53b45af74c691e16", size = 25847, upload-time = "2026-09-02T20:40:17.976Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/85/9a/3ee90730e8ae18821a125b9b3c5950e9e21e2d81248c2822c53ce82f9a62/literegistry_base_deployment-0.1.2-py3-none-any.whl", hash = "sha256:b3861a15b1374a062e9864cb3a4d6482e3308a6bd6f7053b58c9e41766ed7ae0", size = 16458, upload-time = "2026-09-02T20:40:14.498Z" },
+]
+
+[[package]]
+name = "literegistry-podman-beaker"
+version = "0.2.13"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "fire" },
+    { name = "literegistry" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/a9/ec1d61f0a232c6d02460b244de225df2261411370818775ffc9c66f0ef7f/literegistry_podman_beaker-0.2.13.tar.gz", hash = "sha256:275ab24a68f5d8a0e48a5da688e82e6adc51665229eb92bd3c8b5850f05e97e5", size = 145253, upload-time = "2026-09-02T20:46:25.589Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6b/13/a4a461655b1bf55eaf929ebe0c4e2b470b34818b1c4a5001ff704ee5a2c5/literegistry_podman_beaker-0.2.13-py3-none-any.whl", hash = "sha256:40da0a1181804afc6046bed1a157c72be8538bb4cd6599a26455b801c628f029", size = 133704, upload-time = "2026-09-02T20:46:23.439Z" },
+]
+
+[[package]]
+name = "literegistry-tool-client"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0f/80/54fe4498679b56668b194a15f579e4d0d18180c18392a0a22745dd7cbe3d/literegistry_tool_client-0.1.0.tar.gz", hash = "sha256:9e10d63638bfa34c318bfb37614ddda544d88dce5ab828a00017b51d639de687", size = 17836, upload-time = "2026-09-09T19:26:21.497Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/3c/05bf2aa49bf3ea30cce3d853cbd89a551d328c162b17ef0f313985dad724/literegistry_tool_client-0.1.0-py3-none-any.whl", hash = "sha256:fcad5a27efba19b5bf8be8e48022dc1696e71364d25cc7cedb409e3e7cd8bb56", size = 22202, upload-time = "2026-09-09T19:26:19.61Z" },
 ]
 
 [[package]]
@@ -1345,6 +1392,7 @@ version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "fire" },
+    { name = "literegistry-tool-client" },
     { name = "pydantic" },
 ]
 
@@ -1353,7 +1401,7 @@ full = [
     { name = "aiohttp" },
     { name = "datasets" },
     { name = "httpx" },
-    { name = "literegistry" },
+    { name = "literegistry", extra = ["base-deployment", "podman-beaker"] },
     { name = "uvicorn" },
     { name = "verifiers", extra = ["harbor"] },
 ]
@@ -1361,7 +1409,7 @@ runtime = [
     { name = "aiohttp" },
     { name = "datasets" },
     { name = "httpx" },
-    { name = "literegistry" },
+    { name = "literegistry", extra = ["base-deployment", "podman-beaker"] },
     { name = "uvicorn" },
     { name = "verifiers", extra = ["harbor"] },
 ]
@@ -1375,7 +1423,8 @@ requires-dist = [
     { name = "datasets", marker = "extra == 'runtime'" },
     { name = "fire", specifier = ">=0.7.1" },
     { name = "httpx", marker = "extra == 'runtime'" },
-    { name = "literegistry", marker = "extra == 'runtime'", specifier = "==1.0.47" },
+    { name = "literegistry", extras = ["base-deployment", "podman-beaker"], marker = "extra == 'runtime'", specifier = "==1.0.48" },
+    { name = "literegistry-tool-client", specifier = ">=0.1.0,<0.2" },
     { name = "primebeaker", extras = ["runtime"], marker = "extra == 'full'" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8" },

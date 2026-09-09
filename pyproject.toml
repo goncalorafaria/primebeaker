@@ -8,14 +8,14 @@ version = "0.3.0"
 description = "Self-contained Prime-RL environments, clients, TOML tooling, and Beaker launchers."
 readme = "README.md"
 requires-python = "~=3.12.0"
-dependencies = ["fire>=0.7.1", "pydantic>=2.7"]
+dependencies = ["fire>=0.7.1", "pydantic>=2.7", "literegistry-tool-client>=0.1.0,<0.2"]
 
 [project.optional-dependencies]
 runtime = [
     "aiohttp",
     "datasets",
     "httpx",
-    "literegistry[base_deployment,podman_beaker]==1.0.47",
+    "literegistry[base_deployment,podman_beaker]==1.0.48",
     "uvicorn",
     "verifiers[harbor] @ git+https://github.com/PrimeIntellect-ai/verifiers.git@f646beb37eef51869f886f244456e3d07818e4d6",
 ]

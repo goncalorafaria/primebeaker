@@ -7,7 +7,7 @@ from typing import Any
 
 import verifiers as vf
 
-from primebeaker.client.submission import SubmissionStore
+from literegistry_tool_client.submission import SubmissionStore
 from .jtc_tool_label_env import JTCToolLabelEnv
 from . import jtc_tool_label_env as _base
 

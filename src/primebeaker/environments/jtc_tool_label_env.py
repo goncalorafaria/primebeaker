@@ -20,9 +20,9 @@ from typing import Any
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
 import verifiers as vf
 
-from primebeaker.runtime.asset_store import WebAssetStore
-from primebeaker.client.webterminal import _parse_browse_command
-from primebeaker.client import (
+from literegistry_tool_client.asset_store import WebAssetStore
+from literegistry_tool_client.webterminal import _parse_browse_command
+from literegistry_tool_client import (
     FetchClient,
     PlainJsonToolOutputDisplay,
     TerminalExecutionClient,
@@ -37,7 +37,7 @@ from .tool_protocol import (
     TOOL_SPECS,
     _tool_arguments_usable,
 )
-from primebeaker.client.submission import SubmissionStore, SubmitToolClient
+from literegistry_tool_client.submission import SubmissionStore, SubmitToolClient
 from .jtc_label_reward import extract_task_output
 from .jtc_terminal_tool_env import (
     final_label_reward,

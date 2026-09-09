@@ -13,7 +13,7 @@ from typing import Any
 import verifiers as vf
 from verifiers.types import ToolCall
 
-from primebeaker.client import FetchClient, ToolClient
+from literegistry_tool_client import FetchClient, ToolClient
 from .search_agent_env import (
     FINAL_TOOL_CALL_WARNING,
     SearchAgentEnv,

@@ -68,3 +68,14 @@ def test_every_concrete_client_inherits_the_shared_transport() -> None:
         SubmitToolClient,
     ):
         assert issubclass(client_type, ToolClient)
+
+
+def test_literegistry_owns_clients_and_shared_asset_types() -> None:
+    import literegistry_tool_client as canonical
+    import primebeaker.client as compatibility
+    from primebeaker.runtime.asset_store import AssetStore, WebAssetStore
+
+    for name in canonical.__all__:
+        assert getattr(compatibility, name) is getattr(canonical, name)
+    assert AssetStore is canonical.AssetStore
+    assert WebAssetStore is canonical.WebAssetStore

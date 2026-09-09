@@ -7,9 +7,10 @@ COPY . /opt/primebeaker-src/
 # Preserve the tested CUDA/Torch/vLLM solution. Install only the small service
 # layer needed by multi-node tool routing, then overlay PrimeBeaker without
 # re-resolving the GPU environment.
-RUN python3 -m pip install --no-cache-dir "literegistry==1.0.47" uvicorn \
+RUN python3 -m pip install --no-cache-dir --index-url https://pypi.org/simple "literegistry==1.0.48" "literegistry-tool-client==0.1.0" uvicorn \
     && python3 -m pip install --no-cache-dir --no-deps -e /opt/primebeaker-src \
     && python3 -c "import primebeaker, primebeaker.gateway; from primebeaker.environments import ENVIRONMENTS, load_environment_module; [load_environment_module(name) for name in ENVIRONMENTS]" \
+    && python3 -c "from importlib.metadata import version; from literegistry_tool_client import SearchClient; from primebeaker.client import SearchClient as CompatSearchClient; assert version('literegistry-tool-client') == '0.1.0'; assert SearchClient is CompatSearchClient; assert SearchClient.__module__ == 'literegistry_tool_client.search'" \
     && python3 -m primebeaker.multinode --help >/dev/null \
     && bash -n /opt/primebeaker-src/src/primebeaker/multinode_rl_role.sh \
     && bash -n /opt/primebeaker-src/src/primebeaker/multinode_sft_role.sh \

@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any
 
-from primebeaker.client.submission import SUBMIT_TOOL_SPEC
+from literegistry_tool_client.submission import SUBMIT_TOOL_SPEC
 
 
 _THINK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL | re.IGNORECASE)

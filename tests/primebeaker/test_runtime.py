@@ -31,11 +31,11 @@ def test_all_environment_implementations_import_from_primebeaker() -> None:
 
 def test_clients_have_dedicated_modules_and_compatibility_exports() -> None:
     expected_modules = {
-        FetchClient: "primebeaker.client.fetch",
-        JudgeClient: "primebeaker.client.judge",
-        SearchClient: "primebeaker.client.search",
-        TerminalExecutionClient: "primebeaker.client.terminal",
-        WebTerminalExecutionClient: "primebeaker.client.webterminal",
+        FetchClient: "literegistry_tool_client.fetch",
+        JudgeClient: "literegistry_tool_client.judge",
+        SearchClient: "literegistry_tool_client.search",
+        TerminalExecutionClient: "literegistry_tool_client.terminal",
+        WebTerminalExecutionClient: "literegistry_tool_client.webterminal",
     }
     for client, module_name in expected_modules.items():
         assert client.__module__ == module_name

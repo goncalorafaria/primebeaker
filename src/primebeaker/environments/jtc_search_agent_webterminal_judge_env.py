@@ -7,7 +7,7 @@ from typing import Any
 
 import verifiers as vf
 
-from primebeaker.client import (
+from literegistry_tool_client import (
     FetchClient,
     SearchClient,
     TerminalExecutionClient,

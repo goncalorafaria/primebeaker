@@ -10,8 +10,8 @@ from typing import Any, cast
 import verifiers as vf
 from verifiers.types import ToolMessage
 
-from primebeaker.runtime.asset_store import WebAssetStore
-from primebeaker.client import (
+from literegistry_tool_client.asset_store import WebAssetStore
+from literegistry_tool_client import (
     PlainJsonToolOutputDisplay,
     ToolClient,
     terminal_output_to_tool_content,

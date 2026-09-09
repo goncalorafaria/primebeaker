@@ -28,7 +28,7 @@ from .jtc_code_tool_env import (
     first_turn_format_reward,
     normalize_truncation_limit,
 )
-from primebeaker.client import RemoteCodeExecutionClient, code_output_to_tool_content
+from literegistry_tool_client import RemoteCodeExecutionClient, code_output_to_tool_content
 from .jtc_label_reward import extract_python_code
 from .jtc_label_reward import extract_task_output
 
