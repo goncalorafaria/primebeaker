@@ -47,6 +47,11 @@ uses four complete training records and two complete validation records, preserv
 the existing data format without bundling a corpus. Both are ready for the
 Fire-based `preview` and `submit` commands documented there.
 
+## Slurm through Rex
+
+For the Delta Slurm setup, see [PrimeBeaker through Rex interception](deploy/delta/README.md).
+It uses an opt-in `beaker` command shim; PrimeBeaker's normal Beaker backend remains unchanged.
+
 ## Environments
 
 ```bash
