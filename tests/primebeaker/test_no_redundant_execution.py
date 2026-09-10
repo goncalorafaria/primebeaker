@@ -1,4 +1,4 @@
-from primebeaker.client import (
+from literegistry_tool_client import (
     RemoteCodeExecutionClient,
     TerminalExecutionClient,
     WebTerminalExecutionClient,

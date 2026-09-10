@@ -2,19 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from primebeaker.client import (
+from literegistry_tool_client import (
     FetchClient,
     JudgeClient,
     SearchClient,
     TerminalExecutionClient,
     WebTerminalExecutionClient,
-)
-from primebeaker.clients import (
-    FetchClient as CompatibilityFetchClient,
-    JudgeClient as CompatibilityJudgeClient,
-    SearchClient as CompatibilitySearchClient,
-    TerminalExecutionClient as CompatibilityTerminalExecutionClient,
-    WebTerminalExecutionClient as CompatibilityWebTerminalExecutionClient,
 )
 from primebeaker.config import RLTrainingToml
 from primebeaker.environments import ENVIRONMENTS, load_environment_module
@@ -29,7 +22,7 @@ def test_all_environment_implementations_import_from_primebeaker() -> None:
     assert all(name.startswith("primebeaker.environments.") for name in modules)
 
 
-def test_clients_have_dedicated_modules_and_compatibility_exports() -> None:
+def test_clients_are_owned_by_literegistry_tool_client() -> None:
     expected_modules = {
         FetchClient: "literegistry_tool_client.fetch",
         JudgeClient: "literegistry_tool_client.judge",
@@ -40,11 +33,12 @@ def test_clients_have_dedicated_modules_and_compatibility_exports() -> None:
     for client, module_name in expected_modules.items():
         assert client.__module__ == module_name
 
-    assert CompatibilityFetchClient is FetchClient
-    assert CompatibilityJudgeClient is JudgeClient
-    assert CompatibilitySearchClient is SearchClient
-    assert CompatibilityTerminalExecutionClient is TerminalExecutionClient
-    assert CompatibilityWebTerminalExecutionClient is WebTerminalExecutionClient
+
+def test_primebeaker_does_not_package_client_facades() -> None:
+    package_root = Path(__file__).resolve().parents[2] / "src" / "primebeaker"
+
+    assert not (package_root / "client").exists()
+    assert not (package_root / "clients.py").exists()
 
 
 def test_packaged_templates_resolve_inside_primebeaker(

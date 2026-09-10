@@ -2,7 +2,7 @@ import inspect
 from pathlib import Path
 
 import primebeaker
-from primebeaker.client import RemoteCodeExecutionClient
+from literegistry_tool_client import RemoteCodeExecutionClient
 
 
 def test_legacy_record_schema_and_processors_are_not_packaged() -> None:

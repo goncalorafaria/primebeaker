@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from primebeaker.client import JudgeClient
+from literegistry_tool_client import JudgeClient
 
 
 class RecordingJudgeClient(JudgeClient):

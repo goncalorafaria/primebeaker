@@ -17,15 +17,35 @@ penalties; it does not use exact string matching as an answer reward.
 
 ## Prerequisites
 
-Install the runtime extras and make the private dataset available to Beaker
-tasks through the HF_TOKEN secret.
+Install the runtime extras, install the required LiteRegistry images into the
+service workspace, and make the private dataset available to Beaker tasks
+through the HF_TOKEN secret.
 
 ~~~bash
 cd /weka/gfaria/primebeaker
 pip install -e '.[runtime]'
+beaker account whoami
+docker version
+primebeaker services images install \
+  --workspace=ai2/oe-agents \
+  --stack=base \
+  --build-local-search \
+  --jtc-build-context=/path/to/jtc
 export HEAD_REGISTRY=sqlite:///weka/gfaria/primebeaker/registries/search-agent-webterminal.sqlite3
 export REGISTRY=head+sqlite:///weka/gfaria/primebeaker/registries/search-agent-webterminal.sqlite3
 ~~~
+
+Image installation is a required, explicit step: `pip install` installs the
+Python launchers but cannot create images in a remote Beaker workspace. The
+installer builds the Redis, base-services, terminal, vLLM, and local-search
+images matching the installed launcher, uploads them, and prints immutable
+Beaker IDs under `launcher_args`.
+
+Copy those IDs into `services.yaml` as `redis_image`, `services_image`,
+`terminal_image`, `vllm_image`, and `local_search_image`. The judge-model pool
+is launched separately from this YAML; use the installed vLLM image for that
+pool. The GPU training job also needs the immutable PrimeBeaker runtime image
+passed through `--image` later in this README.
 
 The service stack owns the data-plane Redis. The SQLite HEAD_REGISTRY is its
 stable control plane: Redis publishes its live, dynamically allocated URL

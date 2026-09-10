@@ -13,18 +13,12 @@ It includes:
 - safe whole-topology checkpoint discovery and resume;
 - a thin CLI adapter over LiteRegistry's native Beaker service deployment.
 
-It does not import `datadev` or `jtc_data_commons`. Prime-RL owns model
-rendering and the GPU training runtime. Dataset production and evaluation are
-also outside this package. Verifier datasets are JSON/JSONL, saved Hugging Face
-datasets, or Hub datasets; PrimeBeaker does not include a Parquet adapter.
-Convert legacy `.jtasks.parquet` inputs to JSONL or a saved Hugging Face dataset before launch.
-
 ## Install
 
-Client implementations are provided by `literegistry-tool-client`, a standalone
-LiteRegistry companion. Existing `primebeaker.client` imports remain compatible;
-new callers can use `from literegistry_tool_client import SearchClient`.
-Normal installation resolves `literegistry-tool-client` from PyPI.
+Tool clients are provided exclusively by the standalone
+`literegistry-tool-client` package. Import them directly from
+`literegistry_tool_client`; PrimeBeaker does not re-export that API.
+Normal installation resolves the dependency from PyPI.
 
 For TOML and launch tooling:
 
@@ -32,7 +26,7 @@ For TOML and launch tooling:
 pip install -e .
 ```
 
-For environments, clients, the LiteRegistry gateway, and multi-node RL:
+For environments, the LiteRegistry gateway, and multi-node RL:
 
 ```bash
 pip install -e '.[runtime]'
@@ -79,11 +73,6 @@ training-image locations and exact rebuild/publish instructions.
 uses four complete training records and two complete validation records, preserving
 the existing data format without bundling a corpus. Both are ready for the
 Fire-based `preview` and `submit` commands documented there.
-
-## Slurm through Rex
-
-For the Delta Slurm setup, see [PrimeBeaker through Rex interception](deploy/delta/README.md).
-It uses an opt-in `beaker` command shim; PrimeBeaker's normal Beaker backend remains unchanged.
 
 ## Environments
 
@@ -280,6 +269,7 @@ Preview is non-mutating. `--write-spec` writes under
 `<scratch-dir>/primebeaker/beaker_experiments/`; submit writes the same spec and
 invokes `beaker experiment create`.
 
-`primebeaker.client` is the canonical API and exposes terminal, Python, Podman, search, fetch, judge,
-reward-model, web-terminal, and submit clients. Service URLs and credentials
-remain explicit rather than being tied to JTC infrastructure.
+`literegistry_tool_client` is the canonical API for terminal, Python, Podman,
+search, fetch, judge, reward-model, web-terminal, and submit clients. Service
+URLs and credentials remain explicit rather than being tied to JTC
+infrastructure.

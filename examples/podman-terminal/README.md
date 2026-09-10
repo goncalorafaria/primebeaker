@@ -35,12 +35,17 @@ primebeaker services images install \
   --stack=podman
 ```
 
+This image installation is required before the first stack launch in each
+workspace, and again when the installed LiteRegistry Podman launcher version
+changes. Installing the Python runtime alone does not create remote Beaker
+images.
+
 The installer downloads the exact source distribution matching the installed
 `literegistry-podman-beaker`, builds its official Redis, gateway, Podman, and
 Docker-mirror images, uploads them to the workspace, and prints immutable
-Beaker IDs under `launcher_args`. If the workspace cannot read the defaults in
-`services.yaml`, add those four IDs there as `redis_image`, `gateway_image`,
-`podman_image`, and `docker_mirror_image`.
+Beaker IDs under `launcher_args`. Add those four IDs to `services.yaml` as
+`redis_image`, `gateway_image`, `podman_image`, and `docker_mirror_image` so the
+stack uses the images installed in your workspace.
 
 ## Choose the shared registry
 

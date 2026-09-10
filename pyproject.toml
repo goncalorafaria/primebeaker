@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "primebeaker"
 version = "0.3.0"
-description = "Self-contained Prime-RL environments, clients, TOML tooling, and Beaker launchers."
+description = "Self-contained Prime-RL environments, TOML tooling, and Beaker launchers."
 readme = "README.md"
 requires-python = "~=3.12.0"
 dependencies = ["fire>=0.7.1", "pydantic>=2.7", "literegistry-tool-client>=0.1.0,<0.2"]
@@ -30,7 +30,6 @@ primebeaker-images = "primebeaker.images.__main__:main"
 [tool.setuptools]
 packages = [
     "primebeaker",
-    "primebeaker.client",
     "primebeaker.environments",
     "primebeaker.images",
     "primebeaker.resources",
@@ -51,4 +50,3 @@ primebeaker = [
     "resources/judge_templates/*.json",
     "resources/templates/*.json",
 ]
-"primebeaker.client" = ["py.typed"]

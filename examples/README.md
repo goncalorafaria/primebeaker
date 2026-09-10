@@ -26,7 +26,40 @@ The source files are not modified and are not required after these slices are co
 Run commands from the PrimeBeaker repository root so the relative paths in the
 TOMLs resolve inside the mounted Weka dataset.
 
-## Get a compatible image
+## Install the required images
+
+Installing the Python package does not install images into Beaker. Every
+example needs a Prime-RL GPU runtime image, and service-backed examples also
+need their LiteRegistry service images installed in the target workspace.
+
+For the Podman example, install the Podman stack images:
+
+```bash
+beaker account whoami
+docker version
+primebeaker services images install \
+  --workspace=ai2/oe-agents \
+  --stack=podman
+```
+
+For the WebTerminal search example, install the base stack and local-search
+image:
+
+```bash
+primebeaker services images install \
+  --workspace=ai2/oe-agents \
+  --stack=base \
+  --build-local-search \
+  --jtc-build-context=/path/to/jtc
+```
+
+Each command builds the official images matching the installed LiteRegistry
+launcher version, uploads them to Beaker, and prints immutable IDs under
+`launcher_args`. Put those IDs in the example's `services.yaml` before launch.
+This installation is required once for each workspace and service-image
+version. The topology-specific READMEs list the exact YAML fields.
+
+## Select the training image
 
 Use the immutable default image cataloged by PrimeBeaker:
 
@@ -34,8 +67,10 @@ Use the immutable default image cataloged by PrimeBeaker:
 primebeaker sft preview --toml examples/sft/config.toml
 ```
 
-The CLI chooses that image when `--image` is omitted. To inspect, pull, rebuild,
-or publish it, follow [`src/primebeaker/images/README.md`](../src/primebeaker/images/README.md).
+The CLI chooses that image when `--image` is omitted. The selected Beaker
+workspace must be able to read it. To inspect, pull, rebuild, or publish the
+runtime image into another workspace, follow
+[`src/primebeaker/images/README.md`](../src/primebeaker/images/README.md).
 You may instead pass an explicit immutable Beaker image:
 
 ```bash

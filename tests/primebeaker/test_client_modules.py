@@ -1,4 +1,4 @@
-from primebeaker.client import (
+from literegistry_tool_client import (
     FetchClient,
     JudgeClient,
     PodmanExecutionClient,
@@ -10,49 +10,37 @@ from primebeaker.client import (
     ToolClient,
     WebTerminalExecutionClient,
 )
-from primebeaker.client._transport import ToolClient as ModuleToolClient
-from primebeaker.client.code import RemoteCodeExecutionClient as ModuleCodeClient
-from primebeaker.client.fetch import FetchClient as ModuleFetchClient
-from primebeaker.client.judge import JudgeClient as ModuleJudgeClient
-from primebeaker.client.podman import PodmanExecutionClient as ModulePodmanClient
-from primebeaker.client.reward_model import RewardModelClient as ModuleRewardClient
-from primebeaker.client.search import SearchClient as ModuleSearchClient
-from primebeaker.client.submission import SubmitToolClient as ModuleSubmitClient
-from primebeaker.client.terminal import (
+from literegistry_tool_client._transport import ToolClient as ModuleToolClient
+from literegistry_tool_client.code import (
+    RemoteCodeExecutionClient as ModuleCodeClient,
+)
+from literegistry_tool_client.fetch import FetchClient as ModuleFetchClient
+from literegistry_tool_client.judge import JudgeClient as ModuleJudgeClient
+from literegistry_tool_client.podman import PodmanExecutionClient as ModulePodmanClient
+from literegistry_tool_client.reward_model import (
+    RewardModelClient as ModuleRewardClient,
+)
+from literegistry_tool_client.search import SearchClient as ModuleSearchClient
+from literegistry_tool_client.submission import SubmitToolClient as ModuleSubmitClient
+from literegistry_tool_client.terminal import (
     TerminalExecutionClient as ModuleTerminalClient,
 )
-from primebeaker.client.webterminal import (
+from literegistry_tool_client.webterminal import (
     WebTerminalExecutionClient as ModuleWebTerminalClient,
-)
-from primebeaker.clients import (
-    FetchClient as CompatibilityFetchClient,
-    JudgeClient as CompatibilityJudgeClient,
-    PodmanExecutionClient as CompatibilityPodmanClient,
-    RemoteCodeExecutionClient as CompatibilityCodeClient,
-    RewardModelClient as CompatibilityRewardClient,
-    SearchClient as CompatibilitySearchClient,
-    SubmitToolClient as CompatibilitySubmitClient,
-    TerminalExecutionClient as CompatibilityTerminalClient,
-    ToolClient as CompatibilityToolClient,
-    WebTerminalExecutionClient as CompatibilityWebTerminalClient,
 )
 
 
 def test_every_public_client_uses_its_dedicated_implementation() -> None:
-    assert ToolClient is ModuleToolClient is CompatibilityToolClient
-    assert RemoteCodeExecutionClient is ModuleCodeClient is CompatibilityCodeClient
-    assert TerminalExecutionClient is ModuleTerminalClient is CompatibilityTerminalClient
-    assert PodmanExecutionClient is ModulePodmanClient is CompatibilityPodmanClient
-    assert SearchClient is ModuleSearchClient is CompatibilitySearchClient
-    assert FetchClient is ModuleFetchClient is CompatibilityFetchClient
-    assert (
-        WebTerminalExecutionClient
-        is ModuleWebTerminalClient
-        is CompatibilityWebTerminalClient
-    )
-    assert JudgeClient is ModuleJudgeClient is CompatibilityJudgeClient
-    assert RewardModelClient is ModuleRewardClient is CompatibilityRewardClient
-    assert SubmitToolClient is ModuleSubmitClient is CompatibilitySubmitClient
+    assert ToolClient is ModuleToolClient
+    assert RemoteCodeExecutionClient is ModuleCodeClient
+    assert TerminalExecutionClient is ModuleTerminalClient
+    assert PodmanExecutionClient is ModulePodmanClient
+    assert SearchClient is ModuleSearchClient
+    assert FetchClient is ModuleFetchClient
+    assert WebTerminalExecutionClient is ModuleWebTerminalClient
+    assert JudgeClient is ModuleJudgeClient
+    assert RewardModelClient is ModuleRewardClient
+    assert SubmitToolClient is ModuleSubmitClient
 
 
 def test_every_concrete_client_inherits_the_shared_transport() -> None:
@@ -72,10 +60,7 @@ def test_every_concrete_client_inherits_the_shared_transport() -> None:
 
 def test_literegistry_owns_clients_and_shared_asset_types() -> None:
     import literegistry_tool_client as canonical
-    import primebeaker.client as compatibility
     from primebeaker.runtime.asset_store import AssetStore, WebAssetStore
 
-    for name in canonical.__all__:
-        assert getattr(compatibility, name) is getattr(canonical, name)
     assert AssetStore is canonical.AssetStore
     assert WebAssetStore is canonical.WebAssetStore
