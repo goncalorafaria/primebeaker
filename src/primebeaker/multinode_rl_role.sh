@@ -60,6 +60,11 @@ on_exit() {
     local pids
     pids=$(jobs -pr)
     [[ -z "$pids" ]] || { kill -TERM $pids 2>/dev/null; wait $pids 2>/dev/null; }
+    if (( RANK == 0 )) && [[ -n "${PRIMEBEAKER_MANAGED_SERVICE_EXPERIMENT_ID:-}" ]]; then
+        echo "Stopping managed service experiment $PRIMEBEAKER_MANAGED_SERVICE_EXPERIMENT_ID"
+        beaker experiment stop "$PRIMEBEAKER_MANAGED_SERVICE_EXPERIMENT_ID" || \
+            echo "warning: could not stop managed service experiment $PRIMEBEAKER_MANAGED_SERVICE_EXPERIMENT_ID" >&2
+    fi
     exit "$code"
 }
 trap on_exit EXIT
@@ -103,6 +108,10 @@ python3 -c 'import prime_rl, primebeaker'
 command -v inference >/dev/null
 command -v orchestrator >/dev/null
 command -v torchrun >/dev/null
+if [[ -n "${PRIMEBEAKER_MANAGED_SERVICE_EXPERIMENT_ID:-}" ]]; then
+    command -v beaker >/dev/null
+    [[ -n "${BEAKER_TOKEN:-}" ]] || { echo "missing BEAKER_TOKEN for managed service cleanup" >&2; exit 2; }
+fi
 
 export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$SCRATCH/.cache}
 export HF_HOME=${HF_HOME:-$XDG_CACHE_HOME/huggingface}

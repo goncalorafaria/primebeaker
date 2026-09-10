@@ -6,7 +6,8 @@ TOMLs, tiny task JSONL, and a launchable LiteRegistry Podman service stack.
 
 For a full local-search WebTerminal topology, see
 [search-agent-webterminal](search-agent-webterminal). It includes a four-node
-RL TOML and a directly consumable LiteRegistry service-stack YAML.
+RL TOML, a standalone LiteRegistry service-stack YAML, and a combined run YAML
+that schedules both experiments with trainer-owned service cleanup.
 
 These fixtures are literal, deliberately tiny slices of the existing Prime-RL
 training data. They preserve the JSONL shapes without duplicating a corpus:

@@ -23,7 +23,8 @@ RUN python3 -m pip install --no-cache-dir --index-url https://pypi.org/simple \
     && command -v sft \
     && command -v inference \
     && command -v orchestrator \
-    && command -v vllm-router
+    && command -v vllm-router \
+    && command -v beaker
 
 LABEL org.opencontainers.image.title="PrimeBeaker + JTC PyPI runtime" \
       org.opencontainers.image.version="${PRIMEBEAKER_VERSION}" \

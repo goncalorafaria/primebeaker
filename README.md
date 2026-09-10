@@ -171,6 +171,53 @@ Tool workers and Redis remain external services. `--required-service NAME=N`
 adds an exact startup barrier without bundling service deployment into the
 training package.
 
+## Joint service + RL runs
+
+The standalone `services`, `rl`, and `sft` commands remain available. For
+an RL run that owns its service stack, put both launch descriptions in one
+`primebeaker.run/v1` YAML and submit them together:
+
+```bash
+primebeaker run preview --config /weka/path/run.yaml
+primebeaker run launch --config /weka/path/run.yaml
+```
+
+The top-level `service` object is passed to LiteRegistry's native
+`BaseDeploymentConfig`. The `rl` object accepts the same launch settings as
+the standalone RL command: `toml`, `image`, `workspace`, `clusters`,
+`priority`, `min_runtime_hours`, `mount_path`, `dataset`,
+`working_dir`, `scratch_dir`, `home_dir`, `wandb_secret`, `hf_secret`,
+`wandb_run_id`, `wandb_entity`, `environment`, `secrets`,
+`setup_command`, `budget`, `description`,
+`rendezvous_timeout_seconds`, `registry`, `gateway_port`,
+`gateway_workers`, and `required_services`. YAML uses objects for
+`environment`, `secrets`, and `required_services`, and a list for
+`clusters`. A relative `toml` path is resolved relative to the run YAML.
+
+When `rl.registry` is omitted, it is derived from `service.registry` or
+`service.head_registry`; for example, `sqlite:///weka/run.sqlite3` becomes
+`head+sqlite:///weka/run.sqlite3`. This allows both experiments to be
+submitted immediately. Training retains its existing registry/service startup
+barriers.
+
+By default, `lifecycle.cleanup_service_on_training_exit` is true. The joint
+launcher injects the service experiment ID and a `BEAKER_TOKEN` secret into
+trainer replica 0, which stops the owned service experiment during trainer
+shutdown. Set `lifecycle.beaker_token_secret` when the Beaker workspace secret
+has a different name. If RL submission fails, the local launcher rolls the
+service experiment back immediately. See the
+[WebTerminal search-agent example](examples/search-agent-webterminal/README.md)
+for complete joint and independent launch forms.
+
+The independent SFT and RL commands share these placement/runtime flags:
+`image`, `workspace`, `cluster`, `priority`, `min_runtime_hours`,
+`mount_path`, `dataset`, `working_dir`, `scratch_dir`, `home_dir`,
+`wandb_secret`, `hf_secret`, `wandb_run_id`, `env`, `secret`,
+`setup_command`, `budget`, and `description`. Multi-node launches also
+accept `rendezvous_timeout_seconds`; RL additionally accepts `registry`,
+`wandb_entity`, `gateway_port`, `gateway_workers`, and
+`required_service`.
+
 ## LiteRegistry services
 
 PrimeBeaker does not maintain a second service-stack implementation. The

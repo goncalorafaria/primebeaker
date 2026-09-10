@@ -10,6 +10,7 @@ from primebeaker.config import RLTrainingToml, SFTTrainingToml
 from primebeaker.judge_catalog import load_judge_model_profile
 from primebeaker.multinode import MultiNodeRLMetadata
 from primebeaker.rl import RLTomlMetadata
+from primebeaker.run import _rl_kwargs, load_run_yaml
 from primebeaker.services import load_services_yaml
 from primebeaker.sft import SFTTomlMetadata
 
@@ -115,6 +116,22 @@ def test_search_agent_webterminal_services_create_redis_through_sqlite_head() ->
     assert "registry" not in services
     assert services["terminal_replicas"] == 32
     assert services["local_search_replicas"] == 32
+
+
+def test_search_agent_joint_run_matches_independent_launches() -> None:
+    config_path = ROOT / "examples/search-agent-webterminal/run.yaml"
+    document = load_run_yaml(config_path)
+    kwargs = _rl_kwargs(document, service_experiment_id="01SERVICE")
+
+    assert document["service"]["terminal_replicas"] == 32
+    assert document["service"]["local_search_replicas"] == 32
+    assert kwargs["registry"].startswith("head+sqlite:///")
+    assert set(kwargs["required_service"]) == {
+        "terminal=32",
+        "localsearch:bc-rl-v1=32",
+        "judge=1",
+    }
+    assert "PRIMEBEAKER_MANAGED_SERVICE_EXPERIMENT_ID=01SERVICE" in kwargs["env"]
 
 
 def test_podman_terminal_single_node_example_is_live_and_rule_scored() -> None:

@@ -1,0 +1,55 @@
+# One-command service + RL launch for the WebTerminal search agent.
+schema: primebeaker.run/v1
+
+service:
+  # The stable head lets the GPU experiment be submitted immediately. It waits
+  # for Redis and the required workers rather than requiring a manual pause.
+  head_registry: sqlite:///weka/gfaria/primebeaker/registries/search-agent-webterminal.sqlite3
+  workspace: ai2/oe-agents
+  budget: ai2/oe-omai
+  service_clusters:
+    - ai2/jupiter
+  gateway_cluster: ai2/jupiter
+  redis_cluster: ai2/jupiter
+  model_cluster: ai2/oe-agents-holmes
+  service_priority: high
+  min_runtime_hours: 4
+  omit_service_resources: true
+  name_prefix: primebeaker-search-agent-webterminal
+
+  gateway_workers: 32
+  python_replicas: 0
+  web_search_replicas: 0
+  terminal_replicas: 32
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2
+
+  local_search_replicas: 32
+  local_search_service_name: localsearch:bc-rl-v1
+  local_search_corpus_jsonl: /weka/stevenc/data-dr/search_agents/bc_rl_v1/collection/part-00000.jsonl
+  local_search_index_dir: /weka/stevenc/data-dr/search_agents/bc_rl_v1/bm25
+  local_search_image: goncalof/jtc-local-search-lucene-bm25
+
+rl:
+  # Relative TOML paths resolve next to this YAML.
+  toml: multinode-rl.toml
+  image: beaker://goncalof/prime-rl-v071dev83-qwen35-renderer-eval-inflight-holmes
+  workspace: ai2/oe-agents-holmes
+  clusters:
+    - ai2/holmes
+  priority: high
+  min_runtime_hours: 4
+  mount_path: /weka
+  dataset: oe-adapt-default
+  working_dir: /weka/gfaria/primebeaker
+  scratch_dir: /weka/gfaria/primebeaker
+  home_dir: /weka/gfaria/primebeaker
+  required_services:
+    terminal: 32
+    localsearch:bc-rl-v1: 32
+    judge: 1
+
+lifecycle:
+  # Trainer replica 0 stops the service experiment on success, failure, or a
+  # handled termination signal. This secret must exist in the RL workspace.
+  cleanup_service_on_training_exit: true
+  beaker_token_secret: BEAKER_TOKEN

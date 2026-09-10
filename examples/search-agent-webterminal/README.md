@@ -9,6 +9,8 @@ WebTerminal search harness.
 - multinode-rl.toml launches one 8-GPU trainer node and three 8-GPU inference
   nodes on Holmes, for 8 trainer ranks and 24 tensor-parallel-1 inference
   ranks.
+- run.yaml combines those service and RL settings for one-command scheduling
+  and trainer-owned service cleanup.
 
 The TOML uses primebeaker.environments.jtc_search_agent_webterminal_judge_env.
 The final answer reward comes only from the registered judge model. The
@@ -41,10 +43,11 @@ installer builds the Redis, base-services, terminal, vLLM, and local-search
 images matching the installed launcher, uploads them, and prints immutable
 Beaker IDs under `launcher_args`.
 
-Copy those IDs into `services.yaml` as `redis_image`, `services_image`,
-`terminal_image`, `vllm_image`, and `local_search_image`. The judge-model pool
-is launched separately from this YAML; use the installed vLLM image for that
-pool. The GPU training job also needs the immutable PrimeBeaker runtime image
+Copy those IDs into the selected configuration: either `services.yaml` or the
+`service` object in `run.yaml`. Set `redis_image`, `services_image`,
+`terminal_image`, `vllm_image`, and `local_search_image`. The judge-model
+pool is launched separately from these YAMLs; use the installed vLLM image for
+that pool. The GPU training job also needs the immutable PrimeBeaker runtime image
 passed through `--image` later in this README.
 
 The service stack owns the data-plane Redis. The SQLite HEAD_REGISTRY is its
@@ -64,7 +67,40 @@ The Weka paths in services.yaml are paths visible inside Beaker tasks:
 /weka/stevenc/data-dr/search_agents/bc_rl_v1/bm25
 ~~~
 
-## Start and inspect the service stack
+## Launch both experiments with one command
+
+`run.yaml` contains the complete service and RL launch configuration. Preview
+or launch both Beaker experiments together:
+
+~~~bash
+primebeaker run preview \
+  --config=examples/search-agent-webterminal/run.yaml
+
+primebeaker run launch \
+  --config=examples/search-agent-webterminal/run.yaml
+~~~
+
+The launcher submits the service experiment first and immediately submits RL.
+It does not wait for Redis on the submitting machine: the stable SQLite head
+lets the training replicas discover Redis when it appears, and their existing
+`required_services` barrier waits for terminal, local-search, and judge
+capacity.
+
+Trainer replica 0 receives the service experiment ID and stops that experiment
+when training succeeds, fails, or receives a handled termination signal. The
+`BEAKER_TOKEN` secret named by `lifecycle.beaker_token_secret` must exist in
+the RL workspace and be authorized to stop the service experiment in the
+service workspace. If RL submission itself fails, the local launcher stops the
+newly created service experiment immediately.
+
+The judge pool remains separately managed because it may be shared across runs;
+`run.yaml` waits for its registered `judge` endpoint but does not own or stop
+it.
+
+## Launch the service and RL experiments independently
+
+The original commands remain available when services should outlive one run or
+you want to inspect the registry manually. First launch the service stack:
 
 ~~~bash
 primebeaker services yaml preview \
@@ -80,7 +116,7 @@ to the SQLite head, and supplies the derived head+sqlite registry URI to its
 services. It keeps omit_service_resources true, so neither terminal nor
 local-search workers declare a CPU allocation.
 
-Confirm the registry has enough services before submitting the four-node run:
+Optionally confirm the registry has enough services before submitting RL:
 
 ~~~bash
 literegistry detail --registry "$REGISTRY"
@@ -113,7 +149,7 @@ Point the judge service model-profile-directory setting at the printed path.
 This is the catalog the service must use to select the Quokka WebTerminal
 profile; it contains the profile template, tool policy, and rollout limits.
 
-## Preview and submit the multi-node run
+Then preview or submit the multi-node run:
 
 ~~~bash
 primebeaker rl preview \
