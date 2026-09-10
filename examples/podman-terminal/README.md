@@ -15,12 +15,22 @@ The bundle contains:
 - `multinode-rl.toml`: one 8-GPU trainer node and one 8-GPU inference node;
 - `services.yaml`: 16 Podman workers, two Docker-mirror workers, and the native
   LiteRegistry gateway;
-- `data/`: tiny live-task JSONL fixtures using the public Python 3.12 image.
+- `data/train.jsonl`: 512 real TMAX tasks;
+- `data/validation.jsonl`: 32 additional, disjoint TMAX tasks.
 
-The tiny task asks the model to write one file under `/tmp`. Its test command is
-inline so the example needs no custom task image. For real tasks, put the private
-tests in the task image, set `test_command = "bash /tests/test.sh"`, and have the
-test write a score in `[0, 1]` to `reward_file_path`.
+The data is a deterministic subset of the public `allenai/tmax-15k-open-instruct`
+and `allenai/TMax-15K` train rows, joined to their published
+`hamishi740/swerl-tmax-v3` container images. Every JSONL record contains the
+exact TMAX user prompt, `original_image`, `record_id`/`task_id`,
+`environment_name`, and exact `test_final_state.py` source. The private test is
+sent to the live container through stdin only after the agent calls
+`echo TERMINAL_COMPLETE`; it is never installed while the model can still use
+the terminal. The configured command runs pytest and translates its exit status
+to the `[0, 1]` reward file expected by this environment.
+
+Both RL configurations use `batch_size = 512` and `group_size = 32`: every
+training step therefore selects 16 TMAX tasks and samples 32 rollouts per task.
+The 512 data rows are distinct tasks, not 32 copies of 16 prompts.
 
 ## Install the runtime and service images
 

@@ -140,10 +140,32 @@ def test_podman_terminal_single_node_example_is_live_and_rule_scored() -> None:
     train = _rows(ROOT / "examples/podman-terminal/data/train.jsonl")
     validation = _rows(ROOT / "examples/podman-terminal/data/validation.jsonl")
 
-    assert len(train) == 2
-    assert len(validation) == 1
-    assert all(set(row) == {"prompt", "original_image", "record_id"} for row in train + validation)
-    assert all(row["original_image"].endswith("python:3.12-slim") for row in train + validation)
+    rows = train + validation
+    expected_fields = {
+        "prompt",
+        "original_image",
+        "record_id",
+        "task_id",
+        "environment_name",
+        "test_final_state",
+    }
+    assert len(train) == 512
+    assert len(validation) == 32
+    assert all(set(row) == expected_fields for row in rows)
+    assert len({row["record_id"] for row in rows}) == 544
+    assert all(row["record_id"] == row["task_id"] for row in rows)
+    assert all(row["environment_name"] == "swerl_vanillux_sandbox" for row in rows)
+    assert all(
+        row["original_image"].startswith("hamishi740/swerl-tmax-v3:")
+        for row in rows
+    )
+    assert all(
+        row["prompt"][1]["content"].startswith("Please solve this task:")
+        for row in rows
+    )
+    assert all("def test_" in row["test_final_state"] for row in rows)
+    assert config["orchestrator"]["batch_size"] == 512
+    assert config["orchestrator"]["group_size"] == 32
     source = config["orchestrator"]["train"]["source"][0]
     assert source["legacy"]["id"] == "primebeaker.environments.podman_terminal_env"
     args = source["legacy"]["args"]
@@ -152,7 +174,10 @@ def test_podman_terminal_single_node_example_is_live_and_rule_scored() -> None:
     assert args["termination_reward_weight"] == 0.1
     assert args["podman_failure_penalty_weight"] == 1.0
     assert args["fake_tool_penalty_weight"] == 0.1
-    assert "primebeaker-answer.txt" in args["test_command"]
+    assert args["podman_workdir"] == "/home/user"
+    assert args["test_file_path"] == "/tmp/primebeaker-test-final-state.py"
+    assert "python3 -m pytest -q" in args["test_command"]
+    assert config["orchestrator"]["eval"]["source"][0]["num_examples"] == 32
     assert config["deployment"] == {
         "type": "single_node",
         "gpus_per_node": 2,
@@ -176,6 +201,9 @@ def test_podman_terminal_multinode_example_has_matching_topology() -> None:
         "num_infer_replicas": 1,
     }
     assert config["trainer"]["model"]["dp_replicate"] == 8
+    assert config["orchestrator"]["batch_size"] == 512
+    assert config["orchestrator"]["group_size"] == 32
+    assert config["orchestrator"]["eval"]["source"][0]["num_examples"] == 32
     assert config["inference"]["parallel"] == {"tp": 1, "dp": 8}
     assert config["inference"]["api_server_count"] == 8
     source = config["orchestrator"]["train"]["source"][0]

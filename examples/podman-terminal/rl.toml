@@ -37,8 +37,8 @@ name = "primebeaker-podman-terminal-single-node"
 tags = ["primebeaker", "podman", "terminal-agent", "rule-reward", "single-node"]
 
 [orchestrator]
-batch_size = 8
-group_size = 4
+batch_size = 512
+group_size = 32
 seq_len = 8192
 max_off_policy_steps = 1
 oversampling_factor = 1
@@ -66,10 +66,11 @@ id = "primebeaker.environments.podman_terminal_env"
 dataset = "examples/podman-terminal/data/train.jsonl"
 split = "train"
 podman_gateway_url = "http://127.0.0.1:1212"
-podman_workdir = "/tmp"
+podman_workdir = "/home/user"
 completion_marker = "TERMINAL_COMPLETE"
 reward_file_path = "/tmp/primebeaker-reward.txt"
-test_command = '''if [ "$(cat /tmp/primebeaker-answer.txt 2>/dev/null)" = "primebeaker" ]; then printf 1 > /tmp/primebeaker-reward.txt; else printf 0 > /tmp/primebeaker-reward.txt; fi'''
+test_file_path = "/tmp/primebeaker-test-final-state.py"
+test_command = '''if python3 -m pytest -q /tmp/primebeaker-test-final-state.py; then printf 1 > /tmp/primebeaker-reward.txt; else printf 0 > /tmp/primebeaker-reward.txt; fi'''
 command_timeout = 60
 test_timeout = 120
 max_tool_calls = 64
@@ -88,7 +89,7 @@ temperature = 0.0
 
 [[orchestrator.eval.source]]
 name = "podman-terminal-validation"
-num_examples = 1
+num_examples = 32
 group_size = 1
 
 [orchestrator.eval.source.legacy]
@@ -98,10 +99,11 @@ id = "primebeaker.environments.podman_terminal_env"
 dataset = "examples/podman-terminal/data/validation.jsonl"
 split = "validation"
 podman_gateway_url = "http://127.0.0.1:1212"
-podman_workdir = "/tmp"
+podman_workdir = "/home/user"
 completion_marker = "TERMINAL_COMPLETE"
 reward_file_path = "/tmp/primebeaker-reward.txt"
-test_command = '''if [ "$(cat /tmp/primebeaker-answer.txt 2>/dev/null)" = "primebeaker" ]; then printf 1 > /tmp/primebeaker-reward.txt; else printf 0 > /tmp/primebeaker-reward.txt; fi'''
+test_file_path = "/tmp/primebeaker-test-final-state.py"
+test_command = '''if python3 -m pytest -q /tmp/primebeaker-test-final-state.py; then printf 1 > /tmp/primebeaker-reward.txt; else printf 0 > /tmp/primebeaker-reward.txt; fi'''
 command_timeout = 60
 test_timeout = 120
 max_tool_calls = 64

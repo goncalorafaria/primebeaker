@@ -8,6 +8,7 @@ from datasets import Dataset
 from primebeaker.environments.podman_terminal_env import (
     DEFAULT_REWARD_FILE_PATH,
     DEFAULT_TEST_COMMAND,
+    DEFAULT_TEST_FILE_PATH,
     PodmanTerminalEnv,
     episode_termination_credit,
     has_completion_marker,
@@ -19,7 +20,9 @@ from primebeaker.environments.podman_terminal_env import (
     reward_file_probe_command,
     reward_file_score,
     start_task_container,
+    task_final_state_tests,
     task_image,
+    private_test_install_command,
 )
 
 
@@ -30,6 +33,7 @@ class FakePodmanClient:
         self.affinity_id = self.container_id
         self.image: str | None = None
         self.commands: list[tuple[str, float]] = []
+        self.stdin_by_command: dict[str, str] = {}
         self.closed = False
         self.test_reward_file = test_reward_file
         self.reward_file: str | None = "stale-or-model-written"
@@ -46,10 +50,12 @@ class FakePodmanClient:
         self,
         *,
         command: str,
+        stdin: str = "",
         timeout: float = 10,
         **_: Any,
     ) -> dict[str, Any]:
         self.commands.append((command, timeout))
+        self.stdin_by_command[command] = stdin
         if command == reward_file_clear_command(DEFAULT_REWARD_FILE_PATH):
             self.reward_file = None
             return {
@@ -188,6 +194,16 @@ def test_task_image_is_resolved_without_any_trace() -> None:
         raise AssertionError("saved trace contents must not provide the task image")
 
 
+def test_task_final_state_tests_accepts_tmax_field_names() -> None:
+    assert task_final_state_tests(
+        {"task": {"test_final_state": "def test_answer(): assert True"}}
+    ) == "def test_answer(): assert True"
+    assert task_final_state_tests(
+        {"task": {"unit_tests": "def test_answer(): assert True"}}
+    ) == "def test_answer(): assert True"
+    assert task_final_state_tests({"task": {}}) is None
+
+
 def test_start_task_container_does_not_replay_commands() -> None:
     client = FakePodmanClient()
     container_id = asyncio.run(start_task_container(client, "owner/task:tag"))
@@ -253,6 +269,28 @@ def test_tests_run_only_after_live_agent_completes() -> None:
         (reward_file_probe_command(DEFAULT_REWARD_FILE_PATH), 600),
     ]
     assert client.closed is True
+
+
+def test_private_tmax_tests_are_installed_only_after_completion() -> None:
+    client = FakePodmanClient(test_reward_file="1")
+    dataset = Dataset.from_list(
+        [{"prompt": [{"role": "user", "content": "solve"}]}]
+    )
+    env = PodmanTerminalEnv(dataset=dataset, podman_client_factory=lambda: client)
+    state = _completion_state()
+    private_tests = "def test_answer():\n    assert True\n"
+    state["task"]["test_final_state"] = private_tests
+    install_command = private_test_install_command(DEFAULT_TEST_FILE_PATH)
+
+    async def exercise() -> None:
+        await env.setup_state(state)  # type: ignore[arg-type]
+        assert install_command not in client.stdin_by_command
+        await env.env_response([], state)  # type: ignore[arg-type]
+        assert client.stdin_by_command[install_command] == private_tests
+        assert state["podman_test_install_output"]["success"] is True
+        await env.close_podman_session(state)  # type: ignore[arg-type]
+
+    asyncio.run(exercise())
 
 
 def test_missing_image_is_scored_as_podman_failure() -> None:

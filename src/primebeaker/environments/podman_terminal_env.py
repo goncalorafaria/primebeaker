@@ -31,6 +31,7 @@ DEFAULT_COMPLETION_MARKER = "TERMINAL_COMPLETE"
 DEFAULT_PODMAN_GATEWAY_URL = "http://127.0.0.1:1212"
 DEFAULT_REWARD_FILE_PATH = "/logs/verifier/reward.txt"
 DEFAULT_TEST_COMMAND = "bash /tests/test.sh"
+DEFAULT_TEST_FILE_PATH = "/tmp/primebeaker-test-final-state.py"
 _REWARD_FILE_SENTINEL = "__PRIMEBEAKER_REWARD_FILE__"
 _PODMAN_EXECUTION_FAILURE_PREFIX = "bash execution request failed:"
 
@@ -45,7 +46,7 @@ class PodmanCLI(Protocol):
     async def start(self, *, image: str | None = None) -> Mapping[str, Any]: ...
 
     async def execute(
-        self, *, command: str, timeout: float = 10
+        self, *, command: str, stdin: str = "", timeout: float = 10
     ) -> Mapping[str, Any]: ...
 
     async def close(self) -> Mapping[str, Any] | None: ...
@@ -258,6 +259,27 @@ def task_image(state: Mapping[str, Any]) -> str:
     )
 
 
+def task_final_state_tests(state: Mapping[str, Any]) -> str | None:
+    """Return private per-task tests without consulting a saved trajectory."""
+
+    for candidate in _task_candidates(state):
+        for key in ("test_final_state", "unit_tests"):
+            value = candidate.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+    return None
+
+
+def private_test_install_command(path: str) -> str:
+    """Build a command that receives private test source only through stdin."""
+
+    return (
+        "python3 -c 'import pathlib,sys; "
+        "pathlib.Path(sys.argv[1]).write_text(sys.stdin.read())' "
+        f"{shlex.quote(path)}"
+    )
+
+
 async def start_task_container(podman_cli: PodmanCLI, image: str) -> str:
     """Start one clean task container and validate its affinity identity."""
 
@@ -291,6 +313,7 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
         completion_marker: str = DEFAULT_COMPLETION_MARKER,
         reward_file_path: str = DEFAULT_REWARD_FILE_PATH,
         test_command: str = DEFAULT_TEST_COMMAND,
+        test_file_path: str = DEFAULT_TEST_FILE_PATH,
         test_timeout: float = 600,
         reward_file_weight: float = 1.0,
         verifier_reward_weight: float | None = None,
@@ -320,6 +343,8 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
             raise ValueError("reward_file_path must be non-empty")
         if not test_command.strip():
             raise ValueError("test_command must be non-empty")
+        if not test_file_path.strip():
+            raise ValueError("test_file_path must be non-empty")
         if test_timeout <= 0:
             raise ValueError("test_timeout must be positive")
         if verifier_reward_weight is not None:
@@ -344,6 +369,7 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
         self.completion_marker = completion_marker.strip()
         self.reward_file_path = reward_file_path.strip()
         self.test_command = test_command.strip()
+        self.test_file_path = test_file_path.strip()
         self.test_timeout = float(test_timeout)
         self.reward_file_weight = float(reward_file_weight)
         self.termination_reward_weight = float(termination_reward_weight)
@@ -464,6 +490,9 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
                 podman_terminal_complete=False,
                 podman_tests_ran=False,
                 podman_test_command=self.test_command,
+                podman_test_file_path=self.test_file_path,
+                podman_test_source=task_final_state_tests(state),
+                podman_test_install_output=None,
                 podman_test_output=None,
                 podman_reward_file_clear_output=None,
                 podman_reward_file_path=self.reward_file_path,
@@ -504,6 +533,24 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
             )
             if not isinstance(reward_clear_output, Mapping):
                 raise RuntimeError("Podman reward-file clear returned a non-object")
+            test_source = state.get("podman_test_source")
+            if isinstance(test_source, str):
+                install_output = await client.execute(
+                    command=private_test_install_command(self.test_file_path),
+                    stdin=test_source,
+                    timeout=self.test_timeout,
+                )
+                if not isinstance(install_output, Mapping):
+                    raise RuntimeError(
+                        "Podman private-test install returned a non-object"
+                    )
+                state["podman_test_install_output"] = dict(install_output)
+                install_succeeded = (
+                    install_output.get("success") is True
+                    or install_output.get("exit_code") == 0
+                )
+                if not install_succeeded:
+                    raise RuntimeError("Podman private-test install failed")
             test_output = await client.execute(
                 command=self.test_command,
                 timeout=self.test_timeout,
@@ -647,6 +694,7 @@ __all__ = [
     "DEFAULT_COMPLETION_MARKER",
     "DEFAULT_REWARD_FILE_PATH",
     "DEFAULT_TEST_COMMAND",
+    "DEFAULT_TEST_FILE_PATH",
     "PodmanTerminalEnv",
     "PodmanTerminalVerifierEnv",
     "PodmanCLI",
@@ -663,5 +711,7 @@ __all__ = [
     "reward_file_score",
     "qualify_image",
     "start_task_container",
+    "task_final_state_tests",
     "task_image",
+    "private_test_install_command",
 ]
