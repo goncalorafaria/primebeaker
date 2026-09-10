@@ -25,7 +25,7 @@ from primebeaker.runtime.templates import resolve_resource_path
 def test_all_environment_implementations_import_from_primebeaker() -> None:
     modules = {load_environment_module(name).__name__ for name in ENVIRONMENTS}
 
-    assert len(modules) == 15
+    assert len(modules) == 16
     assert all(name.startswith("primebeaker.environments.") for name in modules)
 
 

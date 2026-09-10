@@ -7,7 +7,7 @@ It includes:
 - single-node and multi-node Beaker preview/submission;
 - heterogeneous RL placement (mixed trainer/inference node plus dedicated inference nodes);
 - distributed multi-node SFT through torchrun/FSDP;
-- all 15 runnable Verifiers environments, using LiteRegistry tool clients;
+- all 16 runnable Verifiers environments, using LiteRegistry tool clients;
 - package-local prompt templates, tool-call wire parsing, and tool schemas;
 - an immutable Prime-RL image catalog and reproducible Dockerfiles.
 - safe whole-topology checkpoint discovery and resume;
@@ -38,14 +38,40 @@ For environments, clients, the LiteRegistry gateway, and multi-node RL:
 pip install -e '.[runtime]'
 ```
 
-PrimeBeaker targets Python 3.12, matching the cataloged Prime-RL runtime. The
-`runtime` extra pins the exact PrimeIntellect `verifiers` revision recorded by that
-Prime-RL checkout, so a clean install cannot resolve to the incompatible v1-only
-PyPI API. Git is therefore required when installing the runtime extra from source.
+The runtime extra installs LiteRegistry's Python launchers, but service stacks
+also require their separate container images in Beaker. Complete the runtime
+installation by building the official Dockerfiles from the exact installed
+LiteRegistry companion versions and importing the images into your workspace:
 
-The authenticated `beaker` executable and a Prime-RL GPU image are external
-requirements. See [`src/primebeaker/images/README.md`](src/primebeaker/images/README.md) for immutable image
-locations and exact rebuild/publish instructions.
+```bash
+beaker account whoami
+docker version
+primebeaker services images install --workspace=ai2/oe-agents
+```
+
+The command downloads the matching source distributions, builds both the base
+services and Podman/mirror stacks, uploads every image, and prints the immutable
+Beaker IDs as `launcher_args`. Use those values for `services launch` or
+`services podman launch`. To install only the images required by the Podman
+terminal verifier, pass `--stack=podman`. A local LiteRegistry checkout can be
+used without downloading sources via `--source-root=/path/to/literegistry`.
+If the base deployment will run local search, also pass
+`--build-local-search --jtc-build-context=/path/to/jtc`; that image needs JTC's
+Lucene build assets and is therefore not part of the default build.
+
+This is an explicit post-install step because Python package installation must
+not silently mutate Docker or a remote Beaker workspace. It requires a running
+Docker daemon, an authenticated `beaker` CLI, network access to the configured
+Python and container indexes, and write access to the selected workspace.
+
+PrimeBeaker targets Python 3.12, matching the cataloged Prime-RL runtime. The
+`runtime` extra pins `verifiers[harbor]==0.2.1`, whose released PyPI wheel
+contains the client and environment APIs used by PrimeBeaker. No Git checkout is
+required for the runtime extra.
+
+The authenticated `beaker` executable, Docker, and a Prime-RL GPU image are
+external requirements. See [`src/primebeaker/images/README.md`](src/primebeaker/images/README.md) for immutable
+training-image locations and exact rebuild/publish instructions.
 
 ## Tiny runnable examples
 
@@ -72,7 +98,42 @@ TOMLs use normal module paths such as:
 primebeaker.environments.jtc_tool_label_env:load_environment
 primebeaker.environments.jtc_reward_model_env:load_environment
 primebeaker.environments.jtc_search_agent_env:load_environment
+primebeaker.environments.podman_terminal_env:load_environment
 ```
+
+The Podman terminal solver expects each dataset row to contain a prompt and an
+initial image under `original_image`, `image`, or `container_image`. It starts a
+fresh container directly from that image; saved trace fields are neither required
+nor read. The model solves the task in that live container using exactly two
+model-facing tools, `bash` and `submit`, and must finish with:
+
+```text
+echo TERMINAL_COMPLETE
+```
+
+Only after that marker succeeds, the environment uses the same Podman client to
+clear any stale or model-written reward file, execute the configured unit-test
+command against the model's final filesystem, capture its structured
+stdout/stderr/exit status, and read `/logs/verifier/reward.txt`. Its numeric
+value is clamped to `[0, 1]`; a missing or invalid file contributes exactly zero.
+Four independent rubric weights are configured directly in the Prime-RL TOML:
+
+```toml
+[orchestrator.train.source.legacy.args]
+reward_file_path = "/logs/verifier/reward.txt"
+test_command = "bash /tests/test.sh"
+test_timeout = 600
+reward_file_weight = 1.0
+termination_reward_weight = 0.1
+podman_failure_penalty_weight = 1.0
+fake_tool_penalty_weight = 0.1
+```
+
+The raw rubric values are respectively the captured unit-test score, `1` for a
+successful standalone completion command, `-1` for a Podman setup or execution
+failure, and `-1` per attempted tool name that the environment does not provide. A rollout that merely fails to terminate gets no
+termination credit rather than a separate missing-marker penalty. Failure phase, type,
+message, and an OOM indicator are retained in rollout state for diagnosis.
 
 The launcher rewrites copied legacy environment paths to the `primebeaker`
 namespace in a temporary runtime TOML; it never edits the source TOML.
@@ -140,25 +201,30 @@ primebeaker services launch \
   --head-registry=/weka/gfaria/registries/example \
   --service-cluster=ai2/jupiter
 
-primebeaker services podman preview \
-  --head-registry=/weka/gfaria/registries/example \
+REGISTRY=redis://YOUR_REDIS_HOST:6379 primebeaker services podman preview \
+  --registry=redis://YOUR_REDIS_HOST:6379 \
   --service-cluster=ai2/jupiter \
   --podman-replicas=4 \
   --docker-mirror-replicas=2
+
+REGISTRY=redis://YOUR_REDIS_HOST:6379 primebeaker services podman yaml preview \
+  --config=examples/podman-terminal/services.yaml
 ```
 
 All service flags are passed into LiteRegistry's native
 `BaseDeploymentConfig`; PrimeBeaker adds no stack rendering or coordination
 logic. The `podman` subgroup similarly delegates to the native
-`literegistry-podman-beaker` package. The same operations remain available
-through those two upstream executables.
+`literegistry-podman-beaker` package. Its YAML form is `services podman yaml`:
+it uses the same strict `primebeaker.services/v1` schema as `services yaml` but
+passes the `services` object to the Podman launcher. The same operations remain
+available through those two upstream executables.
 
 Both native launchers use `literegistry.coop.ports` for collision-safe
 dynamic ports and child supervision, plus `literegistry.coop.endpoints` for
-healthy endpoint publication and shutdown cleanup. Pass the resulting
-`head+file://`, `head+sqlite://`, or `head+redis://` registry URI to
-`primebeaker rl preview|submit|resume --registry=...`; training resolves the
-current Redis endpoint through LiteRegistry rather than assuming a fixed port.
+healthy endpoint publication and shutdown cleanup. The base launcher can publish through a `head+file://`, `head+sqlite://`, or
+`head+redis://` registry URI. The native Podman launcher instead requires a
+direct, persistent `redis://` or `rediss://` endpoint shared with training.
+Pass the applicable URI to `primebeaker rl preview|submit|resume --registry=...`.
 
 ## Resume a multi-node RL experiment
 

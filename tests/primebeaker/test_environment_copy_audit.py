@@ -13,13 +13,13 @@ from primebeaker.runtime.json_utils import extract_json_from_response
 
 
 ROOT = Path(__file__).resolve().parents[2]
-VERIFIERS_REVISION = "f646beb37eef51869f886f244456e3d07818e4d6"
+VERIFIERS_REQUIREMENT = "verifiers[harbor]==0.2.1"
 
 
 def test_every_registered_environment_has_a_factory() -> None:
     modules = {load_environment_module(name) for name in ENVIRONMENTS}
 
-    assert len(modules) == 15
+    assert len(modules) == 16
     assert all(module.__name__.startswith("primebeaker.environments.") for module in modules)
     assert all(callable(getattr(module, "load_environment", None)) for module in modules)
 
@@ -44,8 +44,19 @@ def test_json_extraction_is_local_and_preserves_permissive_routing() -> None:
     assert extract_json_from_response('prefix {"feedback":"ok","label":"pass"}') == expected
 
 
-def test_runtime_pins_the_cataloged_primerl_verifier_revision() -> None:
+def test_runtime_uses_only_released_pypi_packages() -> None:
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     runtime = metadata["project"]["optional-dependencies"]["runtime"]
     verifier = next(item for item in runtime if item.startswith("verifiers[harbor]"))
-    assert verifier.endswith(f"@{VERIFIERS_REVISION}")
+    assert verifier == VERIFIERS_REQUIREMENT
+    assert all("git+" not in requirement and " @ " not in requirement for requirement in runtime)
+
+    dockerfile = (
+        ROOT / "src/primebeaker/images/Dockerfile.runtime"
+    ).read_text(encoding="utf-8")
+    assert "primebeaker[runtime]==" in dockerfile
+    assert "jtc[harness]==" in dockerfile
+    assert "COPY " not in dockerfile
+    assert "git+" not in dockerfile
+    assert " -e " not in dockerfile
+    assert not (ROOT / "src/primebeaker/images/Dockerfile.full").exists()

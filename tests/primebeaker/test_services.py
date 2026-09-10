@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from primebeaker.services import LiteRegistryServices
 from primebeaker.cli import run
 
@@ -109,4 +111,85 @@ def test_fire_podman_services_command_uses_native_launcher(monkeypatch) -> None:
     assert seen == {
         "service_clusters": ("ai2/jupiter",),
         "podman_replicas": 4,
+    }
+
+
+def test_fire_services_yaml_command_forwards_head_registry(monkeypatch, tmp_path) -> None:
+    pytest.importorskip("yaml")
+    config = tmp_path / "services.yaml"
+    config.write_text(
+        """schema: primebeaker.services/v1
+services:
+  head_registry: sqlite:///weka/shared/search-agent.sqlite3
+  terminal_replicas: 3
+  service_clusters: [ai2/jupiter]
+""",
+        encoding="utf-8",
+    )
+    seen: dict[str, object] = {}
+
+    class Config:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    class Launcher:
+        def __init__(self, config):
+            pass
+
+        def preview(self):
+            return {"yaml": True}
+
+    monkeypatch.setattr(
+        "primebeaker.services._native", lambda: (Config, Launcher)
+    )
+
+    assert run(["services", "yaml", "preview", f"--config={config}"]) == {
+        "yaml": True
+    }
+    assert seen == {
+        "head_registry": "sqlite:///weka/shared/search-agent.sqlite3",
+        "terminal_replicas": 3,
+        "service_clusters": ["ai2/jupiter"],
+    }
+
+
+def test_fire_podman_services_yaml_command_uses_native_launcher(
+    monkeypatch, tmp_path
+) -> None:
+    pytest.importorskip("yaml")
+    monkeypatch.setenv("REGISTRY", "redis://registry.internal:6379")
+    config = tmp_path / "podman-services.yaml"
+    config.write_text(
+        """schema: primebeaker.services/v1
+services:
+  registry: ${REGISTRY}
+  podman_replicas: 6
+  service_clusters: [ai2/jupiter]
+""",
+        encoding="utf-8",
+    )
+    seen: dict[str, object] = {}
+
+    class Config:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    class Launcher:
+        def __init__(self, config):
+            pass
+
+        def preview(self):
+            return {"podman_yaml": True}
+
+    monkeypatch.setattr(
+        "primebeaker.services._native_podman", lambda: (Config, Launcher)
+    )
+
+    assert run(
+        ["services", "podman", "yaml", "preview", f"--config={config}"]
+    ) == {"podman_yaml": True}
+    assert seen == {
+        "registry": "redis://registry.internal:6379",
+        "podman_replicas": 6,
+        "service_clusters": ["ai2/jupiter"],
     }

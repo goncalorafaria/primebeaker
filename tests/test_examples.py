@@ -4,8 +4,12 @@ import json
 from pathlib import Path
 import tomllib
 
+import pytest
+
 from primebeaker.config import RLTrainingToml, SFTTrainingToml
+from primebeaker.multinode import MultiNodeRLMetadata
 from primebeaker.rl import RLTomlMetadata
+from primebeaker.services import load_services_yaml
 from primebeaker.sft import SFTTomlMetadata
 
 
@@ -61,3 +65,113 @@ def test_tiny_rl_example_preserves_verifier_record_shape(monkeypatch) -> None:
     assert train_source["legacy"]["args"]["dataset"] == "examples/rl/data/train.jsonl"
     RLTrainingToml.from_path(config_path)
     RLTomlMetadata.from_path(config_path)
+
+
+def test_search_agent_webterminal_example_has_matching_multinode_topology() -> None:
+    config_path = ROOT / "examples/search-agent-webterminal/multinode-rl.toml"
+    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+
+    assert config["deployment"] == {
+        "type": "multi_node",
+        "gpus_per_node": 8,
+        "num_train_nodes": 1,
+        "num_infer_nodes": 3,
+        "num_infer_replicas": 1,
+    }
+    assert config["trainer"]["model"]["dp_replicate"] == 8
+    assert config["inference"]["parallel"] == {"tp": 1, "dp": 24}
+    assert config["inference"]["api_server_count"] == 24
+    assert config["orchestrator"]["batch_size"] == 256
+    assert config["orchestrator"]["group_size"] == 16
+    train_args = config["orchestrator"]["train"]["source"][0]["legacy"]["args"]
+    assert (
+        config["orchestrator"]["train"]["source"][0]["legacy"]["id"]
+        == "primebeaker.environments.jtc_search_agent_webterminal_judge_env"
+    )
+    assert train_args["local_search_model_path"] == "localsearch:bc-rl-v1"
+    assert train_args["max_tool_calls"] == 150
+    assert train_args["judge_service_model_path"] == "judge"
+    assert train_args["judge_server_url"] == "http://127.0.0.1:1212/judge"
+    RLTrainingToml.from_path(config_path)
+    metadata = MultiNodeRLMetadata.from_path(config_path)
+    assert metadata.total_nodes == 4
+    assert metadata.total_infer_gpus == 24
+
+
+def test_search_agent_webterminal_services_create_redis_through_sqlite_head() -> None:
+    yaml = pytest.importorskip("yaml")
+    config_path = ROOT / "examples/search-agent-webterminal/services.yaml"
+    document = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    services = load_services_yaml(config_path)
+
+    assert document["schema"] == "primebeaker.services/v1"
+    assert services["head_registry"].startswith("sqlite:///")
+    assert "registry" not in services
+    assert services["terminal_replicas"] == 32
+    assert services["local_search_replicas"] == 32
+
+
+def test_podman_terminal_single_node_example_is_live_and_rule_scored() -> None:
+    config_path = ROOT / "examples/podman-terminal/rl.toml"
+    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    train = _rows(ROOT / "examples/podman-terminal/data/train.jsonl")
+    validation = _rows(ROOT / "examples/podman-terminal/data/validation.jsonl")
+
+    assert len(train) == 2
+    assert len(validation) == 1
+    assert all(set(row) == {"prompt", "original_image", "record_id"} for row in train + validation)
+    assert all(row["original_image"].endswith("python:3.12-slim") for row in train + validation)
+    source = config["orchestrator"]["train"]["source"][0]
+    assert source["legacy"]["id"] == "primebeaker.environments.podman_terminal_env"
+    args = source["legacy"]["args"]
+    assert args["completion_marker"] == "TERMINAL_COMPLETE"
+    assert args["reward_file_weight"] == 1.0
+    assert args["termination_reward_weight"] == 0.1
+    assert args["podman_failure_penalty_weight"] == 1.0
+    assert args["fake_tool_penalty_weight"] == 0.1
+    assert "primebeaker-answer.txt" in args["test_command"]
+    assert config["deployment"] == {
+        "type": "single_node",
+        "gpus_per_node": 2,
+        "num_train_gpus": 1,
+        "num_infer_gpus": 1,
+    }
+    RLTrainingToml.from_path(config_path)
+    metadata = RLTomlMetadata.from_path(config_path)
+    assert metadata.num_gpus == 2
+
+
+def test_podman_terminal_multinode_example_has_matching_topology() -> None:
+    config_path = ROOT / "examples/podman-terminal/multinode-rl.toml"
+    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+
+    assert config["deployment"] == {
+        "type": "multi_node",
+        "gpus_per_node": 8,
+        "num_train_nodes": 1,
+        "num_infer_nodes": 1,
+        "num_infer_replicas": 1,
+    }
+    assert config["trainer"]["model"]["dp_replicate"] == 8
+    assert config["inference"]["parallel"] == {"tp": 1, "dp": 8}
+    assert config["inference"]["api_server_count"] == 8
+    source = config["orchestrator"]["train"]["source"][0]
+    assert source["legacy"]["id"] == "primebeaker.environments.podman_terminal_env"
+    RLTrainingToml.from_path(config_path)
+    metadata = MultiNodeRLMetadata.from_path(config_path)
+    assert metadata.total_nodes == 2
+    assert metadata.total_infer_gpus == 8
+
+
+def test_podman_terminal_services_match_training_registry(monkeypatch) -> None:
+    yaml = pytest.importorskip("yaml")
+    monkeypatch.setenv("REGISTRY", "redis://registry.internal:6379")
+    config_path = ROOT / "examples/podman-terminal/services.yaml"
+    document = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    services = load_services_yaml(config_path)
+
+    assert document["schema"] == "primebeaker.services/v1"
+    assert services["registry"] == "redis://registry.internal:6379"
+    assert services["podman_replicas"] == 16
+    assert services["docker_mirror_replicas"] == 2
+    assert services["podman_session_image"] == "docker.io/library/python:3.12-slim"

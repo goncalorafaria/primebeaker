@@ -1,0 +1,202 @@
+# Four-node WebTerminal search-agent RL:
+# one 8-GPU trainer plus three 8-GPU inference nodes.
+#
+# Start services.yaml against the same Redis registry before submitting this.
+max_steps = 400
+output_dir = "/weka/gfaria/primebeaker/outputs/search-agent-webterminal-qwen35-4b"
+clean_output_dir = false
+
+[trainer]
+enable_token_export = true
+
+[trainer.loss]
+type = "default"
+aggregation = "group_token_mean"
+kl_tau = 0.0
+
+[trainer.model]
+name = "Qwen/Qwen3.5-4B"
+# 128k is the maximum episode context; 512k is the packed trainer context.
+seq_len = 524288
+cp = 1
+dp_replicate = 8
+cp_style = "ulysses"
+ac = { mode = "full", freq = 1 }
+ac_offloading = "None"
+fsdp_cpu_offload = false
+optim_cpu_offload = false
+optimization_dtype = "bfloat16"
+reduce_dtype = "bfloat16"
+attn = "auto"
+impl = "auto"
+
+[trainer.optim]
+type = "adamw"
+lr = 4e-6
+max_norm = 1.0
+weight_decay = 0.0
+eps = 1e-12
+betas1 = 0.95
+betas2 = 0.95
+
+[wandb]
+project = "search-agent"
+name = "primebeaker-qwen35-4b-search-webterminal-judge"
+tags = ["primebeaker", "search-agent", "webterminal", "local-search", "judge", "multinode", "group-token-mean"]
+
+[orchestrator]
+# 16 distinct prompts per update, each with 16 rollouts.
+batch_size = 256
+group_size = 16
+seq_len = 131072
+max_off_policy_steps = 4
+oversampling_factor = 2
+eval_max_inflight_episodes = 512
+
+[orchestrator.model]
+name = "Qwen/Qwen3.5-4B"
+
+[orchestrator.train.sampling]
+max_completion_tokens = 32768
+temperature = 1.0
+
+[orchestrator.train.sampling.extra_body]
+top_p = 0.97
+
+[orchestrator.train.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.train.source]]
+name = "bc-rl-v1-webterminal-train"
+
+[orchestrator.train.source.legacy]
+id = "primebeaker.environments.jtc_search_agent_webterminal_judge_env"
+
+[orchestrator.train.source.legacy.args]
+dataset = "graf/bc-rl-v1.1-search-agent"
+split = "train"
+search_server_url = "http://127.0.0.1:1212/search"
+terminal_server_url = "http://127.0.0.1:1212/terminal"
+local_search_model_path = "localsearch:bc-rl-v1"
+template_path = "templates/search-agent-webterminal-10k.json"
+terminal_truncation = 10000
+webterminal_max_content_length = 64000
+judge_model_path = "/weka/gfaria/prime_sft/outputs/quokka-sft-qwen35-9b-rltracer-xmlv1-search25-baseformula-ba8d07-step400/weights/step_400"
+judge_server_url = "http://127.0.0.1:1212/judge"
+judge_service_model_path = "judge"
+judge_timeout = 240
+judge_max_retries = 3
+judge_rubric_template = "The final answer the model concluded is: {answer}"
+timeout = 65
+max_retries = 3
+max_tool_calls = 150
+max_turns = 151
+tool_stderr_penalty = 0.05
+missing_final_answer_penalty = -1.0
+token_budget_warning_fraction = 0.1
+turn_budget_warning_fraction = 0.1
+
+[orchestrator.train.source.legacy.extra_env_kwargs]
+# Total episode context; distinct from the 32k per-turn generation cap.
+max_total_completion_tokens = 131072
+
+[orchestrator.eval]
+interval = 25
+
+[orchestrator.eval.sampling]
+max_completion_tokens = 32768
+temperature = 1.0
+
+[orchestrator.eval.sampling.extra_body]
+top_p = 0.97
+
+[orchestrator.eval.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.eval.source]]
+name = "bc-rl-v1-webterminal-validation"
+num_examples = 128
+group_size = 4
+
+[orchestrator.eval.source.legacy]
+id = "primebeaker.environments.jtc_search_agent_webterminal_judge_env"
+
+[orchestrator.eval.source.legacy.args]
+dataset = "graf/bc-rl-v1.1-search-agent"
+split = "validation"
+search_server_url = "http://127.0.0.1:1212/search"
+terminal_server_url = "http://127.0.0.1:1212/terminal"
+local_search_model_path = "localsearch:bc-rl-v1"
+template_path = "templates/search-agent-webterminal-10k.json"
+terminal_truncation = 10000
+webterminal_max_content_length = 64000
+judge_model_path = "/weka/gfaria/prime_sft/outputs/quokka-sft-qwen35-9b-rltracer-xmlv1-search25-baseformula-ba8d07-step400/weights/step_400"
+judge_server_url = "http://127.0.0.1:1212/judge"
+judge_service_model_path = "judge"
+judge_timeout = 240
+judge_max_retries = 3
+judge_rubric_template = "The final answer the model concluded is: {answer}"
+timeout = 65
+max_retries = 3
+max_tool_calls = 150
+max_turns = 151
+tool_stderr_penalty = 0.05
+missing_final_answer_penalty = -1.0
+token_budget_warning_fraction = 0.1
+turn_budget_warning_fraction = 0.1
+
+[orchestrator.eval.source.legacy.extra_env_kwargs]
+max_total_completion_tokens = 131072
+
+[orchestrator.renderer]
+name = "qwen3.5"
+enable_thinking = true
+thinking_retention = "tool_cycle"
+
+[inference]
+gpu_memory_utilization = 0.9
+api_server_count = 24
+enable_prefix_caching = true
+
+[inference.server]
+host = "0.0.0.0"
+port = 8000
+
+[inference.model]
+name = "Qwen/Qwen3.5-4B"
+trust_remote_code = true
+max_model_len = 131072
+tool_call_parser = "qwen3_coder"
+reasoning_parser = "qwen3"
+dtype = "bfloat16"
+
+[inference.vllm_extra]
+language_model_only = true
+max_num_batched_tokens = 131072
+
+[inference.env_vars]
+VLLM_ATTENTION_BACKEND = "FLASH_ATTN"
+VLLM_USE_TRITON_FLASH_ATTN = "1"
+
+[inference.parallel]
+tp = 1
+dp = 24
+
+[deployment]
+type = "multi_node"
+gpus_per_node = 8
+num_train_nodes = 1
+num_infer_nodes = 3
+num_infer_replicas = 1
+
+[weight_broadcast]
+type = "nccl"
+
+[ckpt]
+interval = 10
+keep_last = 4
+keep_interval = 10
+resume_step = -1
+
+[log]
+level = "info"

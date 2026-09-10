@@ -1,5 +1,13 @@
 # Tiny training examples
 
+For a live Podman terminal-agent setup, see
+[podman-terminal](podman-terminal). It includes single-node and multi-node RL
+TOMLs, tiny task JSONL, and a launchable LiteRegistry Podman service stack.
+
+For a full local-search WebTerminal topology, see
+[search-agent-webterminal](search-agent-webterminal). It includes a four-node
+RL TOML and a directly consumable LiteRegistry service-stack YAML.
+
 These fixtures are literal, deliberately tiny slices of the existing Prime-RL
 training data. They preserve the JSONL shapes without duplicating a corpus:
 

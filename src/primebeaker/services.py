@@ -2,7 +2,56 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+import os
+from pathlib import Path
+import re
 from typing import Any
+
+from primebeaker.service_images import LiteRegistryImageInstaller
+
+
+_YAML_SCHEMA = "primebeaker.services/v1"
+_UNRESOLVED_ENVIRONMENT = re.compile(
+    r"\$[A-Za-z_][A-Za-z0-9_]*|\$" r"\{[^}]+\}"
+)
+
+
+def _expand_environment(value: Any) -> Any:
+    """Expand environment variables in a declarative services configuration."""
+    if isinstance(value, str):
+        expanded = os.path.expandvars(value)
+        if _UNRESOLVED_ENVIRONMENT.search(expanded):
+            raise ValueError(f"unresolved environment variable in YAML value {value!r}")
+        return expanded
+    if isinstance(value, list):
+        return [_expand_environment(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _expand_environment(item) for key, item in value.items()}
+    return value
+
+
+def load_services_yaml(path: str | Path) -> dict[str, Any]:
+    """Load one strict, environment-expandable LiteRegistry service YAML file."""
+    try:
+        import yaml
+    except ImportError as error:
+        raise RuntimeError(
+            "YAML service configuration requires PyYAML; install primebeaker[runtime]"
+        ) from error
+    config_path = Path(path).expanduser().resolve()
+    with config_path.open(encoding="utf-8") as handle:
+        document = yaml.safe_load(handle)
+    if not isinstance(document, Mapping):
+        raise ValueError("service YAML must contain an object")
+    if document.get("schema") != _YAML_SCHEMA:
+        raise ValueError(f"service YAML schema must be {_YAML_SCHEMA!r}")
+    if set(document) != {"schema", "services"}:
+        raise ValueError("service YAML may contain only schema and services")
+    services = document["services"]
+    if not isinstance(services, Mapping):
+        raise ValueError("service YAML services must contain an object")
+    return _expand_environment(dict(services))
 
 
 def _native() -> tuple[type[Any], type[Any]]:
@@ -32,6 +81,9 @@ def _native_podman() -> tuple[type[Any], type[Any]]:
 
 class LiteRegistryPodmanServices:
     """Delegate Podman and Docker-mirror deployment to LiteRegistry."""
+
+    def __init__(self) -> None:
+        self.yaml = LiteRegistryPodmanYamlServices()
 
     @staticmethod
     def _run(action: str, **config: Any) -> dict[str, Any]:
@@ -63,11 +115,29 @@ class LiteRegistryPodmanServices:
         return launcher_type.stop(experiment_id, dry_run=dry_run)
 
 
+class LiteRegistryPodmanYamlServices:
+    """Load a Podman service-stack YAML and delegate it to LiteRegistry."""
+
+    def preview(self, config: str | Path) -> dict[str, Any]:
+        """Render the native Podman stack described by config."""
+        return LiteRegistryPodmanServices._run(
+            "preview", **load_services_yaml(config)
+        )
+
+    def launch(self, config: str | Path) -> dict[str, Any]:
+        """Launch the native Podman stack described by config."""
+        return LiteRegistryPodmanServices._run(
+            "launch", **load_services_yaml(config)
+        )
+
+
 class LiteRegistryServices:
     """Delegate stack preview, launch, and stop to LiteRegistry's own package."""
 
     def __init__(self) -> None:
         self.podman = LiteRegistryPodmanServices()
+        self.images = LiteRegistryImageInstaller()
+        self.yaml = LiteRegistryYamlServices()
 
     @staticmethod
     def _run(action: str, **config: Any) -> dict[str, Any]:
@@ -97,3 +167,15 @@ class LiteRegistryServices:
 
         _, launcher_type = _native()
         return launcher_type.stop(experiment_id, dry_run=dry_run)
+
+
+class LiteRegistryYamlServices:
+    """Load a service-stack YAML and delegate it to LiteRegistry unchanged."""
+
+    def preview(self, config: str | Path) -> dict[str, Any]:
+        """Render the native service stack described by config."""
+        return LiteRegistryServices._run("preview", **load_services_yaml(config))
+
+    def launch(self, config: str | Path) -> dict[str, Any]:
+        """Launch the native service stack described by config."""
+        return LiteRegistryServices._run("launch", **load_services_yaml(config))

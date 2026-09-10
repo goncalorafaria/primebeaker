@@ -107,6 +107,13 @@ GPTOSS_TERMINAL_TOOL: dict[str, Any] = {
         "type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]
     },
 }
+GPTOSS_BASH_TOOL: dict[str, Any] = {
+    "name": "bash",
+    "description": "Execute one Bash command and return stdout, stderr, and the exit code.",
+    "parameters": {
+        "type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]
+    },
+}
 GPTOSS_WEBTERMINAL_TOOL: dict[str, Any] = {
     "name": "webterminal",
     "description": (
@@ -135,6 +142,7 @@ GPTOSS_SUBMIT_TOOL = SUBMIT_TOOL_SPEC
 
 TOOL_SPECS: dict[str, dict[str, Any]] = {
     "python": GPTOSS_PYTHON_TOOL,
+    "bash": GPTOSS_BASH_TOOL,
     "terminal": GPTOSS_TERMINAL_TOOL,
     "webterminal": GPTOSS_WEBTERMINAL_TOOL,
     "search": GPTOSS_SEARCH_TOOL,

@@ -1,0 +1,35 @@
+# CPU stack for the multi-node WebTerminal search-agent TOML.
+#
+# LiteRegistry creates the data-plane Redis task. It publishes the live Redis
+# endpoint in this stable SQLite control-plane file, under the endpoint name
+# redis. All workers connect through the resulting head+sqlite URI.
+schema: primebeaker.services/v1
+services:
+  head_registry: sqlite:///weka/gfaria/primebeaker/registries/search-agent-webterminal.sqlite3
+  workspace: ai2/oe-agents
+  budget: ai2/oe-omai
+  service_clusters:
+    - ai2/jupiter
+  gateway_cluster: ai2/jupiter
+  redis_cluster: ai2/jupiter
+  model_cluster: ai2/oe-agents-holmes
+  service_priority: high
+  min_runtime_hours: 4
+  omit_service_resources: true
+  name_prefix: primebeaker-search-agent-webterminal
+
+  # Training nodes run their own per-node PrimeBeaker gateways.  The service
+  # gateway remains useful for standalone probes against this registry.
+  gateway_workers: 32
+  python_replicas: 0
+  web_search_replicas: 0
+  terminal_replicas: 32
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2
+
+  # Query and URL mode use the same named local corpus service.  These are
+  # mounted Weka paths visible inside Beaker tasks.
+  local_search_replicas: 32
+  local_search_service_name: localsearch:bc-rl-v1
+  local_search_corpus_jsonl: /weka/stevenc/data-dr/search_agents/bc_rl_v1/collection/part-00000.jsonl
+  local_search_index_dir: /weka/stevenc/data-dr/search_agents/bc_rl_v1/bm25
+  local_search_image: goncalof/jtc-local-search-lucene-bm25

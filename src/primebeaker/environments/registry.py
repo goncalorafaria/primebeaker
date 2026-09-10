@@ -11,6 +11,7 @@ ENVIRONMENTS: dict[str, str] = {
     "code-tool-label": "jtc_code_tool_label_env",
     "label": "jtc_label_env",
     "multiple-choice-accuracy": "jtc_multiple_choice_accuracy_env",
+    "podman-terminal": "podman_terminal_env",
     "reward-model": "jtc_reward_model_env",
     "rubrichub-judge": "jtc_rubrichub_judge_env",
     "search-agent-dataset": "jtc_search_agent_env",
@@ -27,6 +28,7 @@ ENVIRONMENTS: dict[str, str] = {
 # Existing identifiers remain aliases so current Prime-RL TOMLs do not break.
 ENVIRONMENTS.update(
     {
+        "podman-terminal-verifier": "podman_terminal_env",
         "jtc-code-tool-label": "jtc_code_tool_label_env",
         "jtc-label": "jtc_label_env",
         "jtc-multiple-choice-accuracy": "jtc_multiple_choice_accuracy_env",

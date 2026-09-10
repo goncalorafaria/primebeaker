@@ -1,11 +1,36 @@
-# Prime-RL images
+# PrimeBeaker + JTC runtime image
 
-PrimeBeaker ships an immutable image catalog plus two Dockerfiles. The base
-images preserve a tested CUDA, Torch, vLLM, and Prime-RL binary stack. The
-runtime layer adds PrimeBeaker's launchers, clients, environments,
-and templates without re-resolving that GPU dependency stack.
+PrimeBeaker owns the supported training/runtime image. The immutable base image
+provides the tested CUDA, Torch, vLLM, and Prime-RL binary stack. The
+application layer is installed exclusively from version-pinned PyPI releases:
 
-## Tested immutable images
+- `primebeaker[runtime]==0.3.0`
+- `jtc[harness]==0.2.0`
+- released PyPI dependencies including JTCFlow, LiteRegistry, the LiteRegistry
+  tool client, and Verifiers
+
+The Dockerfile contains no source-tree `COPY`, editable install, or VCS URL.
+Datasets, TOML configs, checkpoints, and outputs remain external runtime
+mounts; they are not baked into the image.
+
+## Release order
+
+Publish both wheels before building the image:
+
+```bash
+cd /weka/gfaria/primebeaker
+python -m build
+python -m twine upload dist/primebeaker-0.3.0*
+
+cd /weka/gfaria/jtc
+python -m build
+python -m twine upload dist/jtc-0.2.0*
+```
+
+The image build intentionally fails if either exact version is unavailable
+from public PyPI. There is no alternate-index or local-source fallback.
+
+## Tested immutable base images
 
 List the package-local catalog:
 
@@ -13,33 +38,11 @@ List the package-local catalog:
 python -m primebeaker.images list
 ```
 
-The default workspace uses:
+The default workspace currently uses
+`beaker://01KZVDND2PYP538F5JSGJ469EC`; Holmes uses
+`beaker://01M0E15WYCV7T0J1CMCFPBQ21P`.
 
-```text
-workspace: ai2/oe-agents
-image:     beaker://01KZVDND2PYP538F5JSGJ469EC
-```
-
-Holmes uses:
-
-```text
-workspace: ai2/oe-agents-holmes
-image:     beaker://01M0E15WYCV7T0J1CMCFPBQ21P
-```
-
-Inspect the selected image through Beaker:
-
-```bash
-python -m primebeaker.images inspect --workspace ai2/oe-agents
-python -m primebeaker.images inspect --workspace ai2/oe-agents-holmes
-```
-
-The `primebeaker` launch CLI selects the cataloged image matching
-`--workspace` when `--image` is omitted.
-
-## Pull the image locally
-
-Authenticate the Beaker CLI first, then run:
+Pull the chosen base into Docker:
 
 ```bash
 python -m primebeaker.images pull \
@@ -47,96 +50,41 @@ python -m primebeaker.images pull \
   --tag prime-rl-base:01KZVDND2PYP538F5JSGJ469EC
 ```
 
-Equivalent direct command:
+## Build from PyPI
 
-```bash
-beaker image pull \
-  01KZVDND2PYP538F5JSGJ469EC \
-  prime-rl-base:01KZVDND2PYP538F5JSGJ469EC
-```
-
-## Build the self-contained PrimeBeaker runtime
-
-From the repository root:
+From the PrimeBeaker repository root:
 
 ```bash
 docker build \
   --build-arg BASE_IMAGE=prime-rl-base:01KZVDND2PYP538F5JSGJ469EC \
+  --build-arg PRIMEBEAKER_VERSION=0.3.0 \
+  --build-arg JTC_VERSION=0.2.0 \
   --file src/primebeaker/images/Dockerfile.runtime \
-  --tag primebeaker-runtime:0.3.0 \
+  --tag primebeaker-jtc-runtime:0.3.0-jtc0.2.0 \
   .
 ```
 
-The build fails unless both `rl` and `sft` exist and every bundled environment
-module imports successfully.
+Build-time checks load every PrimeBeaker environment, the JTC verifier workflow,
+and all required CLIs. This is where a missing or incompatible wheel is caught.
 
-Publish the resulting local Docker image to Beaker:
+Publish the resulting image to Beaker:
 
 ```bash
-beaker image create primebeaker-runtime:0.3.0 \
-  --name primebeaker-runtime-0.3.0 \
+beaker image create primebeaker-jtc-runtime:0.3.0-jtc0.2.0 \
+  --name primebeaker-jtc-runtime-0.3.0-jtc0.2.0 \
   --workspace ai2/oe-agents
 ```
 
-Use the immutable `beaker://...` URI returned by that command for training.
+Use the returned immutable `beaker://...` URI as the workflow or training
+`--image`; do not use the mutable local Docker tag in configs.
 
-## Rebuild with the exact maintained Prime-RL fork
+## Smoke test
 
-The tested fork is:
-
-```text
-repository: https://github.com/goncalorafaria/prime-rl.git
-branch:     feat/datadev-training-extensions
-revision:   171c669dac1c83b35559b4adbedf113569eb5579
-upstream:   v0.7.1.dev83 / 2ffe374e0
-```
-
-Create an isolated build context:
+Run the image with `/weka` mounted, then verify these commands inside it:
 
 ```bash
-mkdir primebeaker-image-context
-git clone --recurse-submodules \
-  --branch feat/datadev-training-extensions \
-  https://github.com/goncalorafaria/prime-rl.git \
-  primebeaker-image-context/prime-rl
-git -C primebeaker-image-context/prime-rl checkout --detach \
-  171c669dac1c83b35559b4adbedf113569eb5579
-git -C primebeaker-image-context/prime-rl submodule update --init --recursive
-cp -R primebeaker primebeaker-image-context/primebeaker
+python -m primebeaker.environments
+jtc-workflow list
+command -v rl
+command -v sft
 ```
-
-Then build the source overlay:
-
-```bash
-docker build \
-  --build-arg BASE_IMAGE=prime-rl-base:01KZVDND2PYP538F5JSGJ469EC \
-  --file primebeaker-image-context/primebeaker/src/primebeaker/images/Dockerfile.full \
-  --tag primebeaker-full:0.3.0 \
-  primebeaker-image-context
-```
-
-The historical immutable base image predates cleanup of the fork's Git
-history. Its Beaker ID identifies the tested deployed bytes; the revision
-above is the maintained rebuild source.
-
-## Local smoke test
-
-```bash
-docker run --rm --gpus all --ipc=host \
-  --volume /weka:/weka \
-  --entrypoint /bin/bash \
-  primebeaker-runtime:0.3.0 \
-  -lc 'python -m primebeaker.environments >/tmp/environments && command -v rl && command -v sft'
-```
-
-## LiteRegistry tool-client dependency
-
-Both Dockerfiles install `literegistry==1.0.48` and
-`literegistry-tool-client==0.1.0` from PyPI explicitly, before overlaying
-PrimeBeaker with `--no-deps`. PrimeBeaker environments import directly from
-`literegistry_tool_client`; the old `primebeaker.client` imports re-export the
-same classes. Build-time checks verify the client version, compatibility
-imports, and all environment imports.
-
-The image contains the installed clients and needs no LiteRegistry checkout.
-Existing SIFs and cataloged images must be rebuilt to include this change.

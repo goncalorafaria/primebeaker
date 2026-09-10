@@ -1,0 +1,159 @@
+# Single-node live Podman task solving: one trainer GPU plus one inference GPU.
+# Start services.yaml against the same REGISTRY before submitting this run.
+max_steps = 20
+output_dir = "/weka/gfaria/primebeaker/outputs/podman-terminal-single-node"
+clean_output_dir = false
+
+[trainer]
+enable_token_export = true
+
+[trainer.loss]
+type = "default"
+aggregation = "group_token_mean"
+kl_tau = 0.0
+
+[trainer.model]
+name = "Qwen/Qwen3.5-4B"
+seq_len = 32768
+cp = 1
+dp_replicate = 1
+cp_style = "ulysses"
+ac = { mode = "full", freq = 1 }
+optimization_dtype = "bfloat16"
+reduce_dtype = "bfloat16"
+
+[trainer.optim]
+type = "adamw"
+lr = 4e-6
+max_norm = 1.0
+weight_decay = 0.0
+eps = 1e-12
+betas1 = 0.95
+betas2 = 0.95
+
+[wandb]
+project = "primebeaker-examples"
+name = "primebeaker-podman-terminal-single-node"
+tags = ["primebeaker", "podman", "terminal-agent", "rule-reward", "single-node"]
+
+[orchestrator]
+batch_size = 8
+group_size = 4
+seq_len = 8192
+max_off_policy_steps = 1
+oversampling_factor = 1
+
+[orchestrator.model]
+name = "Qwen/Qwen3.5-4B"
+
+[orchestrator.train.sampling]
+max_completion_tokens = 2048
+temperature = 1.0
+
+[orchestrator.train.sampling.extra_body]
+top_p = 0.97
+
+[orchestrator.train.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.train.source]]
+name = "podman-terminal-train"
+
+[orchestrator.train.source.legacy]
+id = "primebeaker.environments.podman_terminal_env"
+
+[orchestrator.train.source.legacy.args]
+dataset = "examples/podman-terminal/data/train.jsonl"
+split = "train"
+podman_gateway_url = "http://127.0.0.1:1212"
+podman_workdir = "/tmp"
+completion_marker = "TERMINAL_COMPLETE"
+reward_file_path = "/tmp/primebeaker-reward.txt"
+test_command = '''if [ "$(cat /tmp/primebeaker-answer.txt 2>/dev/null)" = "primebeaker" ]; then printf 1 > /tmp/primebeaker-reward.txt; else printf 0 > /tmp/primebeaker-reward.txt; fi'''
+command_timeout = 60
+test_timeout = 120
+max_tool_calls = 64
+max_turns = 65
+reward_file_weight = 1.0
+termination_reward_weight = 0.1
+podman_failure_penalty_weight = 1.0
+fake_tool_penalty_weight = 0.1
+
+[orchestrator.eval]
+interval = 5
+
+[orchestrator.eval.sampling]
+max_completion_tokens = 2048
+temperature = 0.0
+
+[[orchestrator.eval.source]]
+name = "podman-terminal-validation"
+num_examples = 1
+group_size = 1
+
+[orchestrator.eval.source.legacy]
+id = "primebeaker.environments.podman_terminal_env"
+
+[orchestrator.eval.source.legacy.args]
+dataset = "examples/podman-terminal/data/validation.jsonl"
+split = "validation"
+podman_gateway_url = "http://127.0.0.1:1212"
+podman_workdir = "/tmp"
+completion_marker = "TERMINAL_COMPLETE"
+reward_file_path = "/tmp/primebeaker-reward.txt"
+test_command = '''if [ "$(cat /tmp/primebeaker-answer.txt 2>/dev/null)" = "primebeaker" ]; then printf 1 > /tmp/primebeaker-reward.txt; else printf 0 > /tmp/primebeaker-reward.txt; fi'''
+command_timeout = 60
+test_timeout = 120
+max_tool_calls = 64
+max_turns = 65
+reward_file_weight = 1.0
+termination_reward_weight = 0.1
+podman_failure_penalty_weight = 1.0
+fake_tool_penalty_weight = 0.1
+
+[orchestrator.renderer]
+name = "qwen3.5"
+enable_thinking = true
+thinking_retention = "tool_cycle"
+
+[inference]
+gpu_memory_utilization = 0.9
+api_server_count = 1
+enable_prefix_caching = true
+
+[inference.server]
+host = "0.0.0.0"
+port = 8000
+
+[inference.model]
+name = "Qwen/Qwen3.5-4B"
+trust_remote_code = true
+max_model_len = 8192
+tool_call_parser = "qwen3_coder"
+reasoning_parser = "qwen3"
+dtype = "bfloat16"
+
+[inference.vllm_extra]
+language_model_only = true
+max_num_batched_tokens = 8192
+
+[inference.parallel]
+tp = 1
+dp = 1
+
+[deployment]
+type = "single_node"
+gpus_per_node = 2
+num_train_gpus = 1
+num_infer_gpus = 1
+
+[weight_broadcast]
+type = "nccl"
+
+[ckpt]
+interval = 5
+keep_last = 2
+resume_step = -1
+
+[log]
+level = "info"

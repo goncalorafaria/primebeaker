@@ -1,0 +1,31 @@
+# LiteRegistry Podman workers used by both RL TOMLs in this directory.
+# REGISTRY must be a reachable, persistent redis:// or rediss:// endpoint shared
+# by this service experiment and every training node.
+schema: primebeaker.services/v1
+services:
+  registry: ${REGISTRY}
+  workspace: ai2/oe-agents
+  budget: ai2/oe-omai
+  service_clusters:
+    - ai2/jupiter
+  gateway_cluster: ai2/jupiter
+  redis_cluster: ai2/jupiter
+  priority: high
+  min_runtime_hours: 4
+  omit_resources: true
+  name_prefix: primebeaker-podman-terminal
+
+  podman_replicas: 16
+  docker_mirror_replicas: 2
+  gateway_workers: 16
+  docker_mirror_soft_affinity: true
+
+  # Each rollout may override this with original_image/image/container_image
+  # from its dataset row. This is the server's fallback image.
+  podman_session_image: docker.io/library/python:3.12-slim
+  podman_session_memory: 4g
+  podman_session_pids_limit: 2048
+  podman_session_idle_timeout: 7200
+  podman_janitor_interval: 300
+  podman_resource_watchdog_interval: 5
+  podman_image_prune_until: 24h

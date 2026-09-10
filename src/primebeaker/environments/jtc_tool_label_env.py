@@ -571,9 +571,15 @@ class JTCToolLabelEnv(vf.MultiTurnEnv):
             return self._route(state)
 
         async def valid_tool_or_final_turn(state: dict[str, Any]) -> float:
+            if state.get("jtc_infrastructure_failure") is True:
+                return 0.0
             return 1.0 if scored_route(state) in {"tool", "final"} else 0.0
 
         async def invalid_trace_penalty_reward(state: dict[str, Any]) -> float:
+            # Infrastructure-specific environments may recover transport/runtime
+            # failures into state so their own rubric can assign one clear penalty.
+            if state.get("jtc_infrastructure_failure") is True:
+                return 0.0
             return self.invalid_trace_penalty if scored_route(state) == "invalid" else 0.0
 
         async def tool_use_reward(state: dict[str, Any]) -> float:
