@@ -1,0 +1,18 @@
+# Reuses the live LiteRegistry stack; this YAML never submits Beaker jobs.
+existing_registry: redis://holmes-cs-aus-490.reviz.ai2.in:43533
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/qwen35_2b_rl_4203b91b_step400_nooversamp_renderer_eval_inflight512/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/qwen35_2b_rl_4203b91b_step400_nooversamp_renderer_eval_inflight512-frontier-science-reuse
+  datasets: [frontier_science]
+  cluster: ai2/holmes
+  priority: high
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release.json
+  verifier_max_iters: 16
+  terminal_replicas: 8
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  readiness_timeout_seconds: 7200

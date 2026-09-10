@@ -11,6 +11,7 @@ from typing import Any
 import fire
 
 from primebeaker.images import default_image_uri
+from primebeaker.evaluation import PythonEvaluationRequest, PythonEvaluationScheduler
 from primebeaker.judge_catalog import JudgeCatalogCLI
 from primebeaker.multinode import (
     BeakerMultiNodeRLBackend,
@@ -184,6 +185,79 @@ class PrimeBeakerCLI:
         self.run = JointRunCLI()
         self.services = LiteRegistryServices()
         self.judge = JudgeCatalogCLI()
+        self.evaluation = PythonEvaluationCLI()
+
+    @property
+    def watcher(self) -> Any:
+        """Index and browse training/evaluation provenance."""
+
+        try:
+            from primebeaker.watcher.cli import WatcherCLI
+        except ImportError as error:
+            raise RuntimeError(
+                "Watcher dependencies are unavailable; install primebeaker[watcher]"
+            ) from error
+        return WatcherCLI()
+
+
+class PythonEvaluationCLI:
+    """Schedule JTC YAMLs or generic JSON-described Python evaluations."""
+
+    @staticmethod
+    def workflows() -> list[str]:
+        """List every registry-backed JTC workflow accepted by YAML scheduling."""
+
+        from primebeaker.jtc_evaluation import registered_workflow_names
+
+        return registered_workflow_names()
+
+    @staticmethod
+    def _request(request_json: str) -> PythonEvaluationRequest:
+        source = Path(request_json)
+        payload = (
+            json.loads(source.read_text(encoding="utf-8"))
+            if source.is_file()
+            else json.loads(request_json)
+        )
+        return PythonEvaluationRequest.model_validate(payload)
+
+    def request_preview(self, request_json: str) -> dict[str, Any]:
+        return PythonEvaluationScheduler().preview(
+            self._request(request_json)
+        ).model_dump(mode="json")
+
+    def request_submit(self, request_json: str) -> dict[str, Any]:
+        return PythonEvaluationScheduler().submit(self._request(request_json))
+
+    def run(
+        self,
+        config: str | Path,
+        image: str | None = None,
+        registry: str | None = None,
+        dry_run: bool = False,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        """Schedule one PrimeBeaker-owned JTC evaluation YAML."""
+
+        from primebeaker.jtc_evaluation import run_evaluation
+
+        return run_evaluation(
+            config,
+            image=image,
+            registry=registry,
+            dry_run=dry_run,
+            force=force,
+        )
+
+    def preview(
+        self,
+        config: str | Path,
+        image: str | None = None,
+        registry: str | None = None,
+    ) -> dict[str, Any]:
+        return self.run(config, image=image, registry=registry, dry_run=True)
+
+    submit = run
 
 
 def _serialize(value: Any) -> str:

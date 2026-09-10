@@ -1,0 +1,48 @@
+# Clean sequential 256k re-evaluation of step 140.  It starts only after the
+# clean 128k pool is released; shared tools and the Quokka judge stay on Jupiter.
+workflow: search-agent
+search_agent:
+  model: /weka/gfaria/prime_sft/outputs/qwen35_4b_base_search_webterminal_agent_step400-from-scratch-quokka9b-judge-local-bc-v2-browsecomp-oversampling2-ctx128k-multinode-train4-infer24/weights/step_140
+  dataset: /weka/gfaria/records/browsecomp_plus_tevatron.jtasks.parquet
+  run_dir: /weka/gfaria/prime_sft/outputs/qwen35_4b_base_search_webterminal_agent_step400-from-scratch-quokka9b-judge-local-bc-v2-browsecomp-oversampling2-ctx128k-multinode-train4-infer24/search_agent_eval_browsecomp_plus_webterminal_judge_step140_ctx256k_clean
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  workspace: ai2/oe-agents-holmes
+  budget: ai2/oe-omai
+  priority: high
+  min_runtime_hours: 1
+  registry: redis://jupiter-cs-aus-123.reviz.ai2.in:46112
+
+  model_replicas: 8
+  required_model_replicas: 8
+  tensor_parallelism: 1
+  max_model_len: 262144
+  max_num_batched_tokens: 262144
+  local_search_replicas: 0
+  local_search_model_path: localsearch:browsecomp-plus
+
+  harness: webterminal-judge
+  terminal_truncation: 10000
+  template_path: templates/search-agent-webterminal-10k.json
+  visit_max_content_length: 64000
+  max_tool_calls: 150
+  max_turns: 151
+  max_tokens: 32768
+  max_total_completion_tokens: 262144
+  temperature: 1.0
+
+  judge_model_path: /weka/gfaria/prime_sft/outputs/quokka-sft-qwen35-9b-rltracer-xmlv1-search25-baseformula-ba8d07-step400/weights/step_400
+  judge_model_replicas: 0
+  judge_tensor_parallelism: 1
+  judge_max_model_len: 32768
+  judge_max_num_batched_tokens: 131072
+  judge_replicas: 0
+  judge_service_model_path: judge
+  judge_timeout: 240
+  judge_max_retries: 3
+  judge_rubric_template: "The final answer the model concluded is: {answer}"
+
+  max_rows: 830
+  batch_size: 128
+  model_ready_timeout: 86400
+  keep_stack: false

@@ -12,6 +12,12 @@ It includes:
 - an immutable Prime-RL image catalog and reproducible Dockerfiles.
 - safe whole-topology checkpoint discovery and resume;
 - a thin CLI adapter over LiteRegistry's native Beaker service deployment.
+- managed Python evaluation scheduling, readiness, signal forwarding, and cleanup.
+- managed iterative rejection-sampling scheduling and resume, with JTC owning
+  only the judge/filter/compile loop.
+- typed standard, search-agent, and rubric-audit YAML lifecycle descriptions,
+  plus registry-backed scheduling for every packaged JTC workflow—including
+  all verifier, TMAX/Podman, inference, and rubric-generation variants.
 
 ## Install
 
@@ -31,6 +37,30 @@ For environments, the LiteRegistry gateway, and multi-node RL:
 ```bash
 pip install -e '.[runtime]'
 ```
+
+For JTC evaluation scheduling as well:
+
+```bash
+pip install -e '.[runtime,evaluation]'
+primebeaker evaluation preview --config examples/configs/eval/python_only_smoke.yaml
+primebeaker evaluation submit --config examples/configs/eval/python_only_smoke.yaml
+```
+
+For the training/evaluation provenance watcher:
+
+```bash
+pip install -e '.[watcher]'
+primebeaker watcher status --database=watcher.sqlite3
+primebeaker watcher serve --database=watcher.sqlite3 --port=8790
+```
+
+The watcher implementation and lifecycle live in PrimeBeaker. It reads JTC
+training configs and evaluation outcomes but JTC never imports or launches it.
+
+PrimeBeaker owns these YAMLs and the complete service/Beaker lifecycle. JTC is
+the one-way application dependency: it supplies the workload contracts and
+Python workers in the evaluation image. Evaluation image construction lives in
+JTC at `docker/Dockerfile.eval` and installs released PyPI wheels only.
 
 The runtime extra installs LiteRegistry's Python launchers, but service stacks
 also require their separate container images in Beaker. Complete the runtime
@@ -261,6 +291,44 @@ healthy endpoint publication and shutdown cleanup. The base launcher can publish
 `head+redis://` registry URI. The native Podman launcher instead requires a
 direct, persistent `redis://` or `rediss://` endpoint shared with training.
 Pass the applicable URI to `primebeaker rl preview|submit|resume --registry=...`.
+
+## Managed Python evaluations
+
+PrimeBeaker owns the infrastructure half of an evaluation lifecycle: it starts
+LiteRegistry's native service deployment, waits for its published Redis and
+gateway endpoints, checks the required service roster, runs one Python module
+inside a separate Beaker evaluation task, forwards termination signals, and
+stops the owned service experiment in a `finally`/process-exit cleanup path.
+
+The evaluation task command is always:
+
+```text
+python3 -m primebeaker.evaluation_worker
+```
+
+The application module and its arguments are validated data in a
+`PythonEvaluationRequest`; arbitrary commands and shell launchers are not
+accepted. JTC uses this API with its standard, search, audit, or generic
+`jtc.eval.workflow_worker` entry point, so JTC retains benchmark/workflow logic
+while PrimeBeaker owns scheduling and lifetime. The generic worker resolves a
+stable name from JTC's packaged workflow registry; it does not execute an
+arbitrary module or shell command. The image must contain released
+`primebeaker` and `jtc`
+wheels. The supported image build installs only exact versions from public
+PyPI; see
+[`src/primebeaker/images/README.md`](src/primebeaker/images/README.md).
+
+The generic Fire CLI accepts either an inline JSON object or a JSON file:
+
+```bash
+primebeaker evaluation preview --request-json=/weka/path/evaluation-request.json
+primebeaker evaluation submit --request-json=/weka/path/evaluation-request.json
+```
+
+Most users should use `primebeaker evaluation preview|submit --config=...` with
+a PrimeBeaker-owned YAML. A top-level registered JTC workflow name selects the
+generic worker, while `arguments` contains only that workflow's Python keyword
+arguments and `services`/`required_services` describe the managed topology.
 
 ## Resume a multi-node RL experiment
 

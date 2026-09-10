@@ -1,0 +1,27 @@
+# Recovery for the four suites left incomplete after the original serving
+# stack was repeatedly preempted. Keep a separate run directory so the six
+# completed Frontier Science and HealthBench runs remain immutable.
+max_model_len: 32768
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/sft_qwen35_2b_rltracer_correct_16k_toolavg15_ctx32k_200steps_retry1/weights/step_200
+  run_dir: /weka/gfaria/jtc-artifacts/evals/sft_qwen35_2b_rltracer_correct_16k_toolavg15_ctx32k_step200_retry1_recovery1
+  datasets:
+    - drtulu_gold
+    - profbench
+    - researchqa
+    - wildguard_test
+  cluster: ai2/holmes
+  priority: urgent
+  model_replicas: 2
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-prompt-gptoss-harmony.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  python_replicas: 0
+  search_replicas: 0
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  batch_size: 512
+  readiness_timeout_seconds: 7200

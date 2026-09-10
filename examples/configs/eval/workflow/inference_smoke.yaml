@@ -1,0 +1,31 @@
+workflow: inference
+image: beaker://REPLACE_WITH_IMMUTABLE_JTC_EVAL_IMAGE
+run_dir: /weka/gfaria/evals/inference-smoke
+arguments:
+  input_path: /weka/gfaria/records/jtc-rubric-item-mix-test-v4.parquet
+  output_path: /weka/gfaria/evals/inference-smoke/predictions.parquet
+  stream_output_jsonl_path: /weka/gfaria/evals/inference-smoke/predictions.jsonl
+  model_path: /weka/gfaria/models/policy
+  prompt_chat_template_path: templates/jtc-io-prompt.json
+  tool_response_chat_template_path: templates/jtc-io-tool_response.json
+  max_rows: 8
+  batch_size: 8
+services:
+  python_replicas: 1
+  terminal_replicas: 0
+  web_search_replicas: 0
+  local_search_replicas: 0
+  generation_model: /weka/gfaria/models/policy
+  generation_replicas: 2
+  generation_tp: 1
+  max_model_len: 32768
+  max_num_batched_tokens: 32768
+  service_clusters: [ai2/jupiter]
+  model_cluster: ai2/holmes
+  service_priority: high
+  model_priority: high
+  min_runtime_hours: 1
+  omit_service_resources: true
+required_services:
+  /weka/gfaria/models/policy: 1
+  python: 1

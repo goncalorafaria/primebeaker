@@ -1,0 +1,23 @@
+# Final WildGuard repeat after the prior recovery was interrupted at 97%.
+workspace: ai2/oe-agents-holmes
+max_model_len: 32768
+evaluation:
+  model: Qwen/Qwen3.5-4B
+  run_dir: /weka/gfaria/jtc-artifacts/evals/qwen35_4b_base-full-simple-json-wildguard-recovery3
+  datasets: [wildguard_test]
+  cluster: ai2/holmes
+  priority: high
+  model_replicas: 4
+  max_num_batched_tokens: 262144
+  runs: 1
+  temperature: 1.0
+  verifier_tools: none
+  verifier_prompt_chat_template_path: templates/jtc-io-simple-prompt-json.json
+  verifier_max_iters: 1
+  terminal_replicas: 0
+  python_replicas: 0
+  search_replicas: 0
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  batch_size: 512
+  readiness_timeout_seconds: 7200

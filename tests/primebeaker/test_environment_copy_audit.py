@@ -51,12 +51,5 @@ def test_runtime_uses_only_released_pypi_packages() -> None:
     assert verifier == VERIFIERS_REQUIREMENT
     assert all("git+" not in requirement and " @ " not in requirement for requirement in runtime)
 
-    dockerfile = (
-        ROOT / "src/primebeaker/images/Dockerfile.runtime"
-    ).read_text(encoding="utf-8")
-    assert "primebeaker[runtime]==" in dockerfile
-    assert "jtc[harness]==" in dockerfile
-    assert "COPY " not in dockerfile
-    assert "git+" not in dockerfile
-    assert " -e " not in dockerfile
+    assert not (ROOT / "src/primebeaker/images/Dockerfile.runtime").exists()
     assert not (ROOT / "src/primebeaker/images/Dockerfile.full").exists()

@@ -1,0 +1,41 @@
+# Local rollout over 2,500 QUEST prompts. This uses live Serper search and
+# gateway-hosted Jina Reader visits through the WebTerminal browser pipeline
+# (no local corpus).
+# The Beaker services are owned by this evaluator and stopped on exit.
+workflow: search-agent
+search_agent:
+  model: Qwen/Qwen3.5-9B
+  dataset: /weka/gfaria/records/quest_sft_objective.sampled.jrecords.parquet
+  run_dir: /weka/gfaria/prime_sft/outputs/quest_sft_objective_live_web_qwen35_9b_webterminal10k_2500_4gpu_holmes/run_default
+  cluster: ai2/holmes
+  service_cluster: ai2/holmes
+  workspace: ai2/oe-agents-holmes
+  budget: ai2/oe-omai
+  priority: high
+  # This workspace runs on the unallocated Holmes pool, which requires 0.
+  # Redis-backed workers retry instead of cascading on a preemption race.
+  min_runtime_hours: 1
+
+  model_replicas: 4
+  required_model_replicas: 1
+  tensor_parallelism: 1
+  max_model_len: 131072
+  max_num_batched_tokens: 32768
+
+  # Live web services: Serper query + Jina Reader URL visits.
+  search_replicas: 4
+  local_search_replicas: 0
+  local_search_model_path: null
+  harness: webterminal
+  terminal_truncation: 10000
+  template_path: templates/search-agent-webterminal-10k.json
+
+  max_rows: 2500
+  batch_size: 32
+  max_tool_calls: 150
+  max_turns: 151
+  max_tokens: 32768
+  max_total_completion_tokens: 131072
+  visit_max_content_length: 64000
+  model_ready_timeout: 86400
+  keep_stack: false

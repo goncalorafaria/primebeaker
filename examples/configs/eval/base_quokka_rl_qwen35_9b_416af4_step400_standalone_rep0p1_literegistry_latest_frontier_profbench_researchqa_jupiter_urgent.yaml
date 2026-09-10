@@ -1,0 +1,32 @@
+# Base-Quokka standalone-repeat-penalty 0.1 step-400 evaluation.
+# Launches evaluation-owned vLLM replicas into the shared Jupiter registry
+# while reusing its terminal and local-search services.
+max_model_len: 65536
+workspace: ai2/oe-agents
+registry: redis://jupiter-cs-aus-183.reviz.ai2.in:59936
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/base_quokka_qwen35_9b_releasebrowse_sft_step200_rl_416af4-cpt-webassets-8k-science2x-overlongmaxunique-step400-lr4e-6-kl1e-3-b95-wd0-ctx32k-tool64-tu0-stderrpen0p05-standalonerep0p1/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/base_quokka_rl_qwen35_9b_416af4_step400_standalone_rep0p1_literegistry_latest_frontier_profbench_researchqa_jupiter_urgent
+  datasets:
+    - frontier_science
+    - profbench
+    - researchqa
+  cluster: ai2/jupiter
+  service_cluster: ai2/jupiter
+  priority: urgent
+  min_runtime_hours: 0
+  model_replicas: 8
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: webterminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release-browse.json
+  verifier_max_iters: 64
+  terminal_replicas: 0
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2
+  python_replicas: 0
+  search_replicas: 0
+  local_search_model_path: localsearch:bc-v2-72k
+  llm_max_retries: 20
+  gateway_timeout_seconds: 1000
+  batch_size: 512
+  readiness_timeout_seconds: 7200

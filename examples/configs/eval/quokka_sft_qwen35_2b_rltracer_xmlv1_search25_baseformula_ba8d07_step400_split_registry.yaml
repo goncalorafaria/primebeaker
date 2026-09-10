@@ -1,0 +1,41 @@
+# Qwen3.5-2B RL step-400 evaluation. Launch the resource-less Jupiter service
+# stack at minRuntime 0h and the four Holmes vLLM replicas at high priority with
+# minRuntime 1h, then run this evaluation against their shared registry.
+# The service stack provides restricted terminals, live Serper search, and
+# Jina Reader URL visits; it does not launch or route through local BC-v2 search.
+max_model_len: 32768
+workspace: ai2/oe-agents-holmes
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/quokka-sft-qwen35-2b-rltracer-xmlv1-search25-baseformula-ba8d07-step400/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/quokka_sft_qwen35_2b_rltracer_xmlv1_search25_baseformula_ba8d07_step400_split_registry_retry1
+  datasets:
+    - frontier_science
+    - healthbench
+    - drtulu_gold
+    - profbench
+    - researchqa
+    - researchrubrics
+    - wildguard_test
+    - safety_terminal_test
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  min_runtime_hours: 1
+  service_min_runtime_hours: 0
+  omit_service_resources: true
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: webterminal,search
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release-browse-search-xml-v1.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2-holmes
+  python_replicas: 0
+  search_replicas: 4
+  local_search_replicas: 0
+  local_search_model_path: null
+  llm_max_retries: 20
+  gateway_timeout_seconds: 1000
+  batch_size: 512
+  readiness_timeout_seconds: 7200

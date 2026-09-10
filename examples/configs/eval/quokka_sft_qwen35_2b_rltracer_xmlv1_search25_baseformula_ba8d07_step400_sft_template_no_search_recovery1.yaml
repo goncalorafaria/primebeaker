@@ -1,0 +1,43 @@
+# Clean Qwen3.5-2B RL step-400 recovery evaluation. The verifier contract is
+# copied from the SFT evaluation: the SFT browse XML prompt advertises only the
+# terminal tool. No search tool or search service is launched.
+max_model_len: 32768
+workspace: ai2/oe-agents-holmes
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/quokka-sft-qwen35-2b-rltracer-xmlv1-search25-baseformula-ba8d07-step400/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/quokka_sft_qwen35_2b_rltracer_xmlv1_search25_baseformula_ba8d07_step400_sft_template_no_search_recovery1
+  datasets:
+    - frontier_science
+    - healthbench
+    - drtulu_gold
+    - profbench
+    - researchqa
+    - researchrubrics
+    - wildguard_test
+    - safety_terminal_test
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  min_runtime_hours: 1
+  service_min_runtime_hours: 0
+  omit_service_resources: true
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: webterminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release-browse-xml-v1.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2-holmes
+  python_replicas: 0
+  search_replicas: 0
+  local_search_replicas: 8
+  local_search_corpus_jsonl: /weka/stevenc/tmax/indexes/bc-v2/bc-syn-v2_72k_from_lucene.jsonl
+  local_search_index_dir: /weka/stevenc/tmax/indexes/bc-v2/bm25_72k
+  local_search_model_path: localsearch:bc-v2-72k
+  local_search_image: goncalof/jtc-local-search-lucene-bm25-holmes
+  service_startup_timeout_seconds: 600
+  llm_max_retries: 20
+  gateway_timeout_seconds: 1000
+  batch_size: 512
+  readiness_timeout_seconds: 7200

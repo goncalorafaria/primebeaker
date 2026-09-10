@@ -11,13 +11,19 @@ from primebeaker.config import (
     render_training_toml,
 )
 from primebeaker.rl import RLLauncher
+from primebeaker.evaluation import (
+    PythonEvaluationRequest,
+    PythonEvaluationScheduler,
+)
 from primebeaker.sft import SFTLauncher
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "DataArtifacts",
     "RLLauncher",
+    "PythonEvaluationRequest",
+    "PythonEvaluationScheduler",
     "RLTrainingToml",
     "SFTLauncher",
     "SFTTrainingToml",

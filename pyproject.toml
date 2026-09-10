@@ -4,13 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "primebeaker"
-version = "0.3.0"
+version = "0.4.0"
 description = "Self-contained Prime-RL environments, TOML tooling, and Beaker launchers."
 readme = "README.md"
 requires-python = "~=3.12.0"
 dependencies = ["fire>=0.7.1", "pydantic>=2.7", "literegistry-tool-client>=0.1.0,<0.2"]
 
 [project.optional-dependencies]
+evaluation = ["jtc[evals,harness]==0.3.0"]
+watcher = ["fastapi", "jtc==0.3.0", "PyYAML>=6.0", "uvicorn", "wandb"]
 runtime = [
     "aiohttp",
     "datasets",
@@ -21,7 +23,7 @@ runtime = [
     "verifiers[harbor]==0.2.1",
 ]
 test = ["pytest>=8"]
-full = ["primebeaker[runtime]"]
+full = ["primebeaker[runtime,evaluation,watcher]"]
 
 [project.scripts]
 primebeaker = "primebeaker.cli:main"
@@ -37,6 +39,7 @@ packages = [
     "primebeaker.resources.judge_templates",
     "primebeaker.resources.templates",
     "primebeaker.runtime",
+    "primebeaker.watcher",
 ]
 package-dir = {"" = "src"}
 
@@ -49,4 +52,5 @@ primebeaker = [
     "resources/judge_profiles/*.json",
     "resources/judge_templates/*.json",
     "resources/templates/*.json",
+    "watcher/README.md",
 ]

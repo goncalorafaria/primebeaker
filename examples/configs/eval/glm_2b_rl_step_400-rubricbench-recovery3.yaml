@@ -1,0 +1,17 @@
+# Replacement for the invalid one-run 2B RL RubricBench evaluation.
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/qwen35_2b_glm52_sft_c0e8854bb5143cac_rl_5k_161bc7548bdec992_step400/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/glm_2b_rl_step_400-rubricbench-recovery3
+  datasets: [rubricbench]
+  cluster: ai2/holmes
+  priority: high
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 1
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-prompt-gptoss-harmony.json
+  verifier_max_iters: 16
+  terminal_replicas: 8
+  python_replicas: 0
+  search_replicas: 0
+  readiness_timeout_seconds: 7200

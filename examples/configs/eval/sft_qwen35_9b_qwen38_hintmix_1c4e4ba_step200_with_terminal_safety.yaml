@@ -1,0 +1,30 @@
+# Seven-suite Lion SFT evaluation, including the held-out terminal safety test.
+max_model_len: 32768
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/sft_qwen35_9b_base_qwen38_hintmix_1c4e4ba_32k_lr1e-5_200steps-retry1/weights/step_200
+  run_dir: /weka/gfaria/jtc-artifacts/evals/sft_qwen35_9b_qwen38_hintmix_1c4e4ba_step200_with_terminal_safety
+  datasets:
+    - frontier_science
+    - healthbench
+    - drtulu_gold
+    - profbench
+    - researchqa
+    - wildguard_test
+    - safety_terminal_test
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  model_replicas: 2
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-prompt-gptoss-harmony.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr
+  python_replicas: 0
+  search_replicas: 0
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  batch_size: 512
+  readiness_timeout_seconds: 7200

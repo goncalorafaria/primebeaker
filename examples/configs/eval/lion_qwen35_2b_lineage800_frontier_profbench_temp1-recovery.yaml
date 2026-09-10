@@ -1,0 +1,32 @@
+# Recover all missing repeats from the Lion 2B temperature-1.0 sweep.
+workspace: ai2/oe-agents
+max_model_len: 32768
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/lion_qwen35_2b_qwen38_hintmix_rl_d9e929-cpt-s400to800-lr4e-6-os2-ac-nooffload-coupled/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/lion_qwen35_2b_lineage800_frontier_profbench_temp1-recovery
+  datasets:
+    - frontier_science
+    - profbench
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  omit_service_resources: true
+  priority: urgent
+  min_runtime_hours: 0
+  model_replicas: 2
+  max_num_batched_tokens: 262144
+  runs: 3
+  temperature: 1.0
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-prompt-gptoss-harmony.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2
+  python_replicas: 0
+  search_replicas: 0
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  batch_size: 512
+  readiness_timeout_seconds: 7200
+  tags:
+    - temperature-sweep
+    - recovery

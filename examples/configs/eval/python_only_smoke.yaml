@@ -1,0 +1,24 @@
+# Replace this placeholder with the immutable Beaker image built from
+# PrimeBeaker's PyPI-only Dockerfile.runtime.
+image: beaker://IMMUTABLE_PRIMEBEAKER_JTC_IMAGE
+workspace: ai2/oe-agents-holmes
+budget: ai2/oe-omai
+evaluation_cluster: ai2/jupiter
+
+evaluation:
+  model: /weka/gfaria/models/policy/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/policy-step-400-python-smoke
+  datasets:
+    - healthbench
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  model_replicas: 1
+  terminal_replicas: 1
+  runs: 1
+  max_rows: 4
+  batch_size: 4
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release.json
+  verifier_max_iters: 16
+  max_new_tokens: 10000

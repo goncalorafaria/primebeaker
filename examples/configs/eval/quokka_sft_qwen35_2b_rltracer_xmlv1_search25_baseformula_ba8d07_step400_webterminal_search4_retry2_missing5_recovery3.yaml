@@ -1,0 +1,38 @@
+# Recover the five benchmark families missing from live-web retry 2. The model
+# sees only `terminal` through the webterminal backend. Four live search/Jina
+# replicas back the registry, but no explicit `search` tool is advertised.
+max_model_len: 32768
+workspace: ai2/oe-agents-holmes
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/quokka-sft-qwen35-2b-rltracer-xmlv1-search25-baseformula-ba8d07-step400/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/quokka_sft_qwen35_2b_rltracer_xmlv1_search25_baseformula_ba8d07_step400_webterminal_search4_retry2_missing5_recovery3
+  datasets:
+    - profbench
+    - researchqa
+    - researchrubrics
+    - wildguard_test
+    - safety_terminal_test
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  min_runtime_hours: 1
+  service_min_runtime_hours: 0
+  omit_service_resources: true
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: webterminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release-browse-xml-v1.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2-holmes
+  python_replicas: 0
+  search_replicas: 4
+  local_search_replicas: 0
+  # Despite the legacy field name, this is the gateway /search service selector.
+  # `search` routes webterminal browse requests through the live Jina pool.
+  local_search_model_path: search
+  llm_max_retries: 20
+  gateway_timeout_seconds: 1000
+  batch_size: 512
+  readiness_timeout_seconds: 7200

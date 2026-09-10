@@ -1,0 +1,24 @@
+# Full MOSS evaluation of the stable step-800 continuation checkpoint.
+# The model was trained with a 32K rollout context and up to 64 tool calls;
+# preserve that interaction budget here while running the standard six-suite
+# comparison used for the prior 2B RL checkpoints.
+max_model_len: 32768
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/qwen35_2b_harmony_sft32_rl_161bc-step400-kl0-b95-wd0-ctx32k-tool64-tu2/weights/step_800
+  run_dir: /weka/gfaria/jtc-artifacts/evals/qwen35_2b_harmony_sft32_rl_161bc-step800-kl0-b95-wd0-ctx32k-tool64-tooluse2
+  datasets: [frontier_science, healthbench, drtulu_gold, profbench, researchqa, wildguard_test]
+  cluster: ai2/holmes
+  priority: high
+  model_replicas: 8
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-prompt-gptoss-harmony.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  python_replicas: 0
+  search_replicas: 0
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  batch_size: 512
+  readiness_timeout_seconds: 7200

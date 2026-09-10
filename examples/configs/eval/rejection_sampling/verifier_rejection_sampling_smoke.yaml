@@ -1,0 +1,34 @@
+workflow: rejection-sampling
+image: beaker://REPLACE_WITH_IMMUTABLE_JTC_EVAL_IMAGE
+rejection:
+  source_path: /weka/gfaria/records/profbench_max20_rubrics.parquet
+  gold_path: /weka/gfaria/records/profbench_max20_rubrics.parquet
+  output_dir: /weka/gfaria/evals/verifier-rejection-sampling-smoke
+  model: /weka/gfaria/models/policy
+  verifier_workflow: verifier-tool-use
+  prompt_chat_template_path: templates/jtc-io-terminal-prompt-gptoss-harmony.json
+  rounds: 4
+  max_rows: 8
+  max_iters: 8
+  batch_size: 8
+  temperature: 0.6
+  tools: terminal
+services:
+  python_replicas: 0
+  terminal_replicas: 2
+  web_search_replicas: 0
+  local_search_replicas: 0
+  generation_model: /weka/gfaria/models/policy
+  generation_replicas: 2
+  generation_tp: 1
+  max_model_len: 32768
+  max_num_batched_tokens: 32768
+  service_clusters: [ai2/jupiter]
+  model_cluster: ai2/holmes
+  service_priority: high
+  model_priority: high
+  min_runtime_hours: 1
+  omit_service_resources: true
+required_services:
+  /weka/gfaria/models/policy: 1
+  terminal: 1

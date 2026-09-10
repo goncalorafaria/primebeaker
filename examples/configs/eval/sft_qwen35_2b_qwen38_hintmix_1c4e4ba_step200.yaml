@@ -1,0 +1,31 @@
+# Standard six-suite MOSS evaluation of the Qwen3.8 hint-mix SFT checkpoint,
+# before RL. Match its 32K training context and preserve the 64-tool budget
+# represented by the long terminal traces.
+max_model_len: 32768
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/sft_qwen35_2b_base_qwen38_hintmix_1c4e4ba_32k_lr1e-5_200steps/weights/step_200
+  run_dir: /weka/gfaria/jtc-artifacts/evals/sft_qwen35_2b_qwen38_hintmix_1c4e4ba_step200
+  datasets:
+    - frontier_science
+    - healthbench
+    - drtulu_gold
+    - profbench
+    - researchqa
+    - wildguard_test
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  model_replicas: 2
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-prompt-gptoss-harmony.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr
+  python_replicas: 0
+  search_replicas: 0
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  batch_size: 512
+  readiness_timeout_seconds: 7200

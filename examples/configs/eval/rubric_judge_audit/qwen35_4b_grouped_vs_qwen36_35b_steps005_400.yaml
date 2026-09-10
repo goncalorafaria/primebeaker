@@ -1,0 +1,42 @@
+workflow: rubric-judge-audit
+image: beaker://IMMUTABLE_PRIMEBEAKER_JTC_IMAGE
+
+sample:
+  run_dir: /weka/gfaria/prime_sft/outputs/qwen35_4b_rubrichub_science_medical_grouped8_qwen35_4b_toolcall_judge4_step400_batch128_g8_inflight128_completion16k_lr8e6_nooversamp_offpolicy4_ctx32k_train2_infer6_holmes/run_default
+  output_path: /weka/gfaria/records/posthoc/rh_qwen35_4b_grouped_qwen35_4b_steps005_400_every5_rubrics128_per_step.jrecords.parquet
+  min_step: 5
+  max_step: 400
+  step_interval: 5
+  rubrics_per_step: 128
+  seed: 73354
+  trace_reader: arrow
+
+inference:
+  model: Qwen/Qwen3.6-35B-A3B
+  template_path: templates/recordset-batch-rubric-judge.json
+  output_path: /weka/gfaria/records/posthoc/rh_qwen35_4b_grouped_qwen35_4b_steps005_400_every5_rubrics128_per_step.qwen36_35b_128k_batch_json.jrecords.parquet
+  responses_path: /weka/gfaria/records/posthoc/rh_qwen35_4b_grouped_qwen35_4b_steps005_400_every5_rubrics128_per_step.qwen36_35b_128k_batch_json.jrecords.jsonl
+  max_prompt_length: 122880
+  max_new_tokens: 8192
+  temperature: 0.0
+  batch_size: 128
+  llm_max_retries: 3
+
+deployment:
+  model_replicas: 2
+  tensor_parallelism: 2
+  max_model_len: 131072
+  max_num_batched_tokens: 32768
+  max_num_seqs: 64
+  gateway_workers: 8
+  cluster: ai2/holmes
+  workspace: ai2/oe-agents-holmes
+  budget: ai2/oe-omai
+  priority: high
+  min_runtime_hours: 1
+  readiness_timeout_seconds: 5400
+
+outputs:
+  audit_dir: /weka/gfaria/records/posthoc/qwen36_35b_qwen35_4b_grouped_judge_audit
+  recovered_path: /weka/gfaria/records/posthoc/rh_qwen35_4b_grouped_qwen35_4b_steps005_400_every5_rubrics128_per_step.qwen36_35b_128k_batch_json.recovered.jrecords.parquet
+  receipt_path: /weka/gfaria/records/posthoc/qwen36_35b_qwen35_4b_grouped_judge_audit/jtceval-run.json

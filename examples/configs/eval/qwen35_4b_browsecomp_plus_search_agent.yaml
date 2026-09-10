@@ -1,0 +1,39 @@
+# DataDev self-cleaning local-search evaluation. The lifecycle submits the
+# LiteRegistry model/search stack to Beaker, writes rollouts under run_dir,
+# and stops that exact Beaker experiment when evaluation exits.
+workflow: search-agent
+search_agent:
+  model: /weka/gfaria/prime_sft/outputs/qwen35_4b_base_search_visit_agent_step100-local-bc-v2-jtask-eval30x4-tools150-oversampling4-ctx128k-adamweps1e-12-urgent-gatewayfixed-clean/weights/step_200
+  dataset: /weka/gfaria/records/browsecomp_plus_tevatron.jtasks.parquet
+  run_dir: /weka/gfaria/prime_sft/outputs/qwen35_4b_base_search_visit_agent_step100-local-bc-v2-jtask-eval30x4-tools150-oversampling4-ctx128k-adamweps1e-12-urgent-gatewayfixed-clean/search_agent_eval_browsecomp_plus_step200-judge-glm52-vllm4-judgevllm1-cpujudge1
+  cluster: ai2/holmes
+  priority: urgent
+  model_replicas: 4
+  required_model_replicas: 4
+  tensor_parallelism: 1
+  max_model_len: 262144
+  max_num_batched_tokens: 262144
+  local_search_replicas: 8
+  local_search_corpus_jsonl: /weka/stevenc/tmax/indexes/browsecomp-plus/corpus.jsonl
+  local_search_index_dir: /weka/stevenc/tmax/indexes/browsecomp-plus/bm25
+  local_search_model_path: localsearch:browsecomp-plus
+  registry: redis://holmes-cs-aus-530.reviz.ai2.in:22904
+  harness: visit-judge
+  judge_model_path: /weka/gfaria/prime_sft/outputs/qwen35_4b_glm52_sft_c0e8854bb5143cac_rl_5k_161bc7548bdec992_step400-nooversamp-renderer-eval-inflight512-kl1e-3-lr1e-6/weights/step_400
+  judge_model_replicas: 1
+  judge_tensor_parallelism: 1
+  judge_max_model_len: 32768
+  judge_max_num_batched_tokens: 32768
+  judge_replicas: 1
+  judge_service_model_path: judge
+  judge_timeout: 240
+  judge_max_retries: 3
+  judge_rubric_template: "The final answer the model concluded is: {answer}"
+  max_rows: 830
+  batch_size: 32
+  max_tool_calls: 150
+  max_turns: 151
+  max_tokens: 131072
+  max_total_completion_tokens: 131072
+  visit_max_content_length: 64000
+  model_ready_timeout: 86400

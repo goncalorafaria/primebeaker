@@ -5,6 +5,7 @@ from pathlib import Path
 from primebeaker import coordination, gateway, multinode
 from primebeaker.environments.__main__ import main as environments_main
 from primebeaker.images.__main__ import main as images_main
+from primebeaker.cli import run as cli_run
 
 
 def test_primebeaker_has_no_argparse_implementation() -> None:
@@ -67,3 +68,17 @@ def test_gateway_fire_root_function(monkeypatch) -> None:
 
     gateway.main(["--registry=redis://registry:6379", "--port=1212"])
     assert called == {"registry": "redis://registry:6379", "port": 1212}
+
+
+def test_watcher_fire_command_is_nested_under_primebeaker(
+    tmp_path: Path,
+) -> None:
+    result = cli_run(
+        [
+            "watcher",
+            "status",
+            f"--database={tmp_path / 'watcher.sqlite3'}",
+        ]
+    )
+
+    assert result["exists"] is False

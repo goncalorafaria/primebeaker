@@ -1,0 +1,19 @@
+# Clean rerun of the only two benchmarks affected by transient model 404s.
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/qwen35_2b_sft_2b4af52a0d1352ea_rl_5k_4203b91b21b25100_release_step400-invalidcorrected-retry1/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/release_2b_rl_step_400-retry-missing-benchmarks
+  datasets:
+    - researchqa
+    - wildguard_test
+  cluster: ai2/holmes
+  priority: high
+  model_replicas: 8
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: terminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release.json
+  verifier_max_iters: 16
+  terminal_replicas: 8
+  python_replicas: 0
+  search_replicas: 0
+  readiness_timeout_seconds: 7200

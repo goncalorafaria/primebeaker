@@ -1,0 +1,32 @@
+# ResearchRubrics-only evaluation that shares the already-running 9B model and
+# terminal services. The lifecycle starts only a local gateway/evaluator; it
+# neither launches nor owns the shared LiteRegistry deployment.
+max_model_len: 32768
+workspace: ai2/oe-agents-holmes
+existing_registry: redis://jupiter-cs-aus-173.reviz.ai2.in:34592
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/quokka_sft_qwen35_9b_base_rltracer_16k_xmlv1_searchsourcecriteria_v3_32k_lr1e-5_200steps-retry1/weights/step_200
+  run_dir: /weka/gfaria/jtc-artifacts/evals/quokka_sft_qwen35_9b_rltracer_xmlv1_step200_researchrubrics_parallel_1run
+  datasets:
+    - researchrubrics
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  min_runtime_hours: 0
+  omit_service_resources: true
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 1
+  verifier_tools: webterminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release-browse-xml-v1.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2
+  python_replicas: 0
+  search_replicas: 0
+  local_search_model_path: localsearch:bc-v2-72k
+  llm_max_retries: 20
+  gateway_timeout_seconds: 1000
+  # Deliberately lower than the main eval's 512 so both can make progress.
+  batch_size: 128
+  readiness_timeout_seconds: 7200

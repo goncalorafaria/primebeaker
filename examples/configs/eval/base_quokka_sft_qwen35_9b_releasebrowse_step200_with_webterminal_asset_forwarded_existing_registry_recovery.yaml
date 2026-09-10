@@ -1,0 +1,35 @@
+# Recovery evaluation after fixing canonical ``terminal`` -> webterminal asset
+# forwarding. A fresh run directory keeps the invalid pre-fix judgments intact.
+max_model_len: 65536
+workspace: ai2/oe-agents
+existing_registry: redis://jupiter-cs-aus-183.reviz.ai2.in:59936
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/base_quokka_sft_qwen35_9b_releasebrowse_65ac0be_32k_lr1e-5_200steps/weights/step_200
+  run_dir: /weka/gfaria/jtc-artifacts/evals/base_quokka_sft_qwen35_9b_releasebrowse_step200_with_webterminal_asset_forwarded_existing_registry_recovery
+  datasets:
+    - frontier_science
+    - healthbench
+    - drtulu_gold
+    - profbench
+    - researchqa
+    - wildguard_test
+    - safety_terminal_test
+  cluster: ai2/jupiter
+  service_cluster: ai2/jupiter
+  priority: urgent
+  min_runtime_hours: 0
+  model_replicas: 2
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: webterminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release-browse.json
+  verifier_max_iters: 64
+  terminal_replicas: 0
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2
+  python_replicas: 0
+  search_replicas: 0
+  local_search_model_path: localsearch:bc-v2-72k
+  llm_max_retries: 20
+  gateway_timeout_seconds: 1000
+  batch_size: 512
+  readiness_timeout_seconds: 7200

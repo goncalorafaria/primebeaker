@@ -112,12 +112,15 @@ def test_catalog_selects_immutable_image_by_workspace() -> None:
     assert all(location.immutable_uri.startswith("beaker://") for location in locations)
 
 
-def test_runtime_has_no_imports_from_the_source_package() -> None:
+def test_non_evaluation_runtime_has_no_jtc_imports() -> None:
     package_root = Path(__file__).resolve().parents[2] / "src" / "primebeaker"
-    forbidden = "jtc_data_commons"
+    forbidden = "jtc.common"
 
     offenders = []
+    evaluation_boundary = {"jtc_evaluation.py", "evaluation_assets.py"}
     for path in package_root.rglob("*.py"):
+        if path.name in evaluation_boundary:
+            continue
         if forbidden in path.read_text(encoding="utf-8"):
             offenders.append(path.relative_to(package_root))
     assert offenders == []

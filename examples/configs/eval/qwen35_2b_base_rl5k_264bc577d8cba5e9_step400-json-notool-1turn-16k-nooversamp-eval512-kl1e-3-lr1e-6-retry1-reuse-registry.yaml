@@ -1,0 +1,23 @@
+# No-tool, one-turn simple-JSON evaluation for this 2B RL checkpoint.
+existing_registry: redis://holmes-cs-aus-549.reviz.ai2.in:29148
+tensor_parallelism: 1
+max_model_len: 16384
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/qwen35_2b_base_rl5k_264bc577d8cba5e9_step400-json-notool-1turn-16k-nooversamp-eval512-kl1e-3-lr1e-6-retry1/weights/step_400
+  run_dir: /weka/gfaria/jtc-artifacts/evals/qwen35_2b_base_rl5k_264bc577d8cba5e9_step400-json-notool-1turn-16k-nooversamp-eval512-kl1e-3-lr1e-6-retry1-reuse-registry
+  datasets: [frontier_science, healthbench, drtulu_gold, profbench, researchqa, wildguard_test]
+  cluster: ai2/holmes
+  priority: high
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: none
+  verifier_prompt_chat_template_path: templates/jtc-io-simple-prompt-json.json
+  verifier_max_iters: 1
+  terminal_replicas: 0
+  python_replicas: 0
+  search_replicas: 0
+  llm_max_retries: 20
+  gateway_timeout_seconds: 200
+  batch_size: 512
+  readiness_timeout_seconds: 7200

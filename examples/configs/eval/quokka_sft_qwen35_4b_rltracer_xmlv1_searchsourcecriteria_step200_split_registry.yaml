@@ -1,0 +1,38 @@
+# Qwen3.5-4B step-200 evaluation matching the completed 2B evaluation.
+# Infrastructure is launched as two stacks against one registry:
+#   - eight resource-less terminal workers on Jupiter with minRuntime 0h
+#   - four one-GPU vLLM workers on Holmes with high priority/minRuntime 1h
+# Pass the shared registry with `datadev eval CONFIG --registry REDIS_URL`.
+max_model_len: 32768
+workspace: ai2/oe-agents-holmes
+evaluation:
+  model: /weka/gfaria/prime_sft/outputs/quokka_sft_qwen35_4b_base_rltracer_16k_xmlv1_searchsourcecriteria_v3_32k_lr1e-5_200steps-retry2/weights/step_200
+  run_dir: /weka/gfaria/jtc-artifacts/evals/quokka_sft_qwen35_4b_rltracer_xmlv1_searchsourcecriteria_step200_split_registry
+  datasets:
+    - frontier_science
+    - healthbench
+    - drtulu_gold
+    - profbench
+    - researchqa
+    - wildguard_test
+    - safety_terminal_test
+  cluster: ai2/holmes
+  service_cluster: ai2/jupiter
+  priority: high
+  min_runtime_hours: 1
+  omit_service_resources: true
+  model_replicas: 4
+  max_num_batched_tokens: 65536
+  runs: 3
+  verifier_tools: webterminal
+  verifier_prompt_chat_template_path: templates/jtc-io-terminal-release-browse-xml-v1.json
+  verifier_max_iters: 64
+  terminal_replicas: 8
+  terminal_image: goncalof/literegistry-terminal-1-0-27-pandoc5-sortuniq-tr-cut2
+  python_replicas: 0
+  search_replicas: 0
+  local_search_model_path: localsearch:bc-v2-72k
+  llm_max_retries: 20
+  gateway_timeout_seconds: 1000
+  batch_size: 512
+  readiness_timeout_seconds: 7200
