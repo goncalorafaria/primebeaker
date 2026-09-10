@@ -1,0 +1,15 @@
+{
+  "model": "replace-with-your-registered-model-path",
+  "rubric_mode": "per_rubric",
+  "prompt_template_path": "../judge_templates/jtc-io-repl-prompt-gptoss-harmony.json",
+  "max_turns": 9,
+  "max_tool_calls": 8,
+  "max_tokens": 8192,
+  "timeout": 90,
+  "max_retries": 3,
+  "rubric_max_retries": 1,
+  "rollout_timeout": 3600,
+  "evaluation_timeout": 3600,
+  "tools": ["terminal"],
+  "temperature": 0.0
+}

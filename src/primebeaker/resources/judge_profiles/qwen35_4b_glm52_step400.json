@@ -1,0 +1,12 @@
+{
+  "model": "/weka/gfaria/prime_sft/outputs/qwen35_4b_glm52_sft_c0e8854bb5143cac_rl_5k_161bc7548bdec992_step400-nooversamp-renderer-eval-inflight512-kl1e-3-lr1e-6/weights/step_400",
+  "prompt_template_path": "../judge_templates/jtc-io-terminal-prompt-gptoss-harmony.json",
+  "max_turns": 17,
+  "max_tool_calls": 16,
+  "max_tokens": 8192,
+  "timeout": 90,
+  "max_retries": 3,
+  "rollout_timeout": 180,
+  "tools": ["terminal"],
+  "temperature": 0.0
+}

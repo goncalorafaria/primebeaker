@@ -7,6 +7,7 @@ import tomllib
 import pytest
 
 from primebeaker.config import RLTrainingToml, SFTTrainingToml
+from primebeaker.judge_catalog import load_judge_model_profile
 from primebeaker.multinode import MultiNodeRLMetadata
 from primebeaker.rl import RLTomlMetadata
 from primebeaker.services import load_services_yaml
@@ -92,6 +93,11 @@ def test_search_agent_webterminal_example_has_matching_multinode_topology() -> N
     assert train_args["max_tool_calls"] == 150
     assert train_args["judge_service_model_path"] == "judge"
     assert train_args["judge_server_url"] == "http://127.0.0.1:1212/judge"
+    assert train_args["validate_judge_profile"] is True
+    assert (
+        load_judge_model_profile(train_args["judge_model_path"]).source_path.name
+        == "quokka_sft_qwen35_9b_rltracer_xmlv1_search25_ba8d07_step400.json"
+    )
     RLTrainingToml.from_path(config_path)
     metadata = MultiNodeRLMetadata.from_path(config_path)
     assert metadata.total_nodes == 4

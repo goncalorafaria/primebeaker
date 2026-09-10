@@ -11,6 +11,7 @@ from typing import Any
 import fire
 
 from primebeaker.images import default_image_uri
+from primebeaker.judge_catalog import JudgeCatalogCLI
 from primebeaker.multinode import (
     BeakerMultiNodeRLBackend,
     BeakerMultiNodeSFTBackend,
@@ -180,6 +181,7 @@ class PrimeBeakerCLI:
         self.sft = TrainingProgram("sft")
         self.rl = TrainingProgram("rl")
         self.services = LiteRegistryServices()
+        self.judge = JudgeCatalogCLI()
 
 
 def _serialize(value: Any) -> str:

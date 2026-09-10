@@ -1,0 +1,17 @@
+{
+  "model": "/weka/gfaria/prime_sft/outputs/lion_qwen35_4b_qwen38_hintmix_rl_d9e929-cpt-s400to800-lr4e-6-os2-ac-nooffload-coupled/weights/step_400",
+  "rubric_mode": "per_rubric",
+  "prompt_template_path": "../judge_templates/jtc-io-terminal-prompt-gptoss-harmony.json",
+  "max_turns": 65,
+  "max_tool_calls": 64,
+  "max_tokens": 8192,
+  "timeout": 300,
+  "max_retries": 3,
+  "rubric_max_retries": 1,
+  "rollout_timeout": 300,
+  "evaluation_timeout": 500,
+  "tools": [
+    "terminal"
+  ],
+  "temperature": 0.0
+}

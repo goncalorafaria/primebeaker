@@ -71,6 +71,28 @@ model_path judge and the judge-model vLLM pool named in multinode-rl.toml. The
 rollout calls the local gateway at port 1212, which routes its judge request to
 that proxy. Both must use the same head+sqlite registry as this stack.
 
+## Judge profile catalog
+
+PrimeBeaker ships the judge-model catalog and all templates it references. The
+TOML enables validate_judge_profile, so the rollout checks that its exact
+judge_model_path is present in this catalog before a training rollout begins.
+
+~~~bash
+primebeaker judge path
+primebeaker judge show \
+  --model=/weka/gfaria/prime_sft/outputs/quokka-sft-qwen35-9b-rltracer-xmlv1-search25-baseformula-ba8d07-step400/weights/step_400
+~~~
+
+For the existing judge-server entrypoint, configure that catalog explicitly:
+
+~~~bash
+export JUDGE_MODEL_PROFILES_DIR="$(primebeaker judge path)"
+~~~
+
+Point the judge service model-profile-directory setting at the printed path.
+This is the catalog the service must use to select the Quokka WebTerminal
+profile; it contains the profile template, tool policy, and rollout limits.
+
 ## Preview and submit the multi-node run
 
 ~~~bash

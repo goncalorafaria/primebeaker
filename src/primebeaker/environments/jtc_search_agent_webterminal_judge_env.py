@@ -119,6 +119,7 @@ def load_environment(
     judge_timeout: float = 240,
     judge_max_retries: int = 3,
     judge_rubric_template: str = DEFAULT_JUDGE_RUBRIC_TEMPLATE,
+    validate_judge_profile: bool = False,
     timeout: float = 65,
     max_retries: int = 3,
     terminal_truncation: int | None = 2000,
@@ -144,6 +145,10 @@ def load_environment(
             raise ValueError("judge_server_url is required when search_server_url is not a /search URL")
         judge_server_url = base_search_url[:-len("/search")] + "/judge"
     local_search_model_path = local_search_model_path or None
+    if validate_judge_profile:
+        from primebeaker.judge_catalog import load_judge_model_profile
+
+        load_judge_model_profile(judge_model_path)
     terminal = TerminalExecutionClient(
         terminal_server_url,
         timeout=timeout,
