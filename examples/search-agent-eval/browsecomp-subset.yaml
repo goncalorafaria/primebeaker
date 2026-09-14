@@ -1,0 +1,38 @@
+# Run a small real eval against an already running LiteRegistry service stack.
+# Replace image, registry, checkpoint and dataset paths before submission.
+workflow: search-agent
+image: beaker://YOUR_EVAL_IMAGE
+search_agent:
+  model: /weka/models/search-agent/step_380
+  dataset: /weka/datasets/browsecomp_plus_tevatron.jtasks.parquet
+  run_dir: /weka/evals/search-agent-step380-subset32
+  registry: redis://YOUR_REGISTRY_HOST:6379
+  model_replicas: 0
+  required_model_replicas: 1
+  local_search_replicas: 0
+  terminal_replicas: 0
+  local_search_model_path: localsearch:browsecomp-plus
+  harness: webterminal-judge
+  judge_model_path: /weka/models/quokka/step_400
+  judge_model_replicas: 0
+  judge_replicas: 0
+  judge_service_model_path: judge
+  judge_timeout: 240
+  judge_max_retries: 3
+  judge_rubric_template: 'The final answer the model concluded is: {answer}'
+  max_rows: 32
+  batch_size: 8
+  rollouts_per_example: 1
+  max_model_len: 131072
+  max_num_batched_tokens: 131072
+  max_num_seqs: 128
+  max_tool_calls: 150
+  max_turns: 151
+  max_tokens: 32768
+  max_total_completion_tokens: 131072
+  temperature: 1.0
+  terminal_truncation: 10000
+  visit_max_content_length: 64000
+  template_path: templates/search-agent-webterminal-10k.json
+  model_ready_timeout: 7200
+  keep_stack: true

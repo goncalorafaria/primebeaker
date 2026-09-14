@@ -1,0 +1,35 @@
+{
+  "model": "/models/step380",
+  "server": {
+    "max_model_len": 131072,
+    "enable_chunked_prefill": true,
+    "enable_prefix_caching": true,
+    "mamba_cache_mode": "align",
+    "language_model_only": true,
+    "reasoning_parser": "qwen3",
+    "enable_auto_tool_choice": true,
+    "tool_call_parser": "qwen3_coder",
+    "max_num_batched_tokens": 131072,
+    "max_num_seqs": 128
+  },
+  "grid": {},
+  "concurrency": [
+    8,
+    16,
+    32
+  ],
+  "workloads": [
+    {
+      "name": "search-agent-replay",
+      "replay_manifest": "/data/replay-manifest.json"
+    }
+  ],
+  "requests": 128,
+  "warmup_requests": 8,
+  "repeats": 2,
+  "seed": 42,
+  "startup_timeout": 1800,
+  "benchmark_timeout": 1800,
+  "latency_limits_ms": {},
+  "measurement_seconds": 180
+}

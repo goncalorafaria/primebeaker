@@ -388,3 +388,7 @@ invokes `beaker experiment create`.
 search, fetch, judge, reward-model, web-terminal, and submit clients. Service
 URLs and credentials remain explicit rather than being tied to JTC
 infrastructure.
+
+## vLLM throughput tuning
+
+`primebeaker vllm-sweep` benchmarks real eval trace subsets or synthetic workloads, samples throughput and GPU utilization, and preserves partial results for later analysis. Trials run sequentially within a Rexs allocation. See [the sweep guide](examples/vllm-sweep/README.md).

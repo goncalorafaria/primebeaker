@@ -1,0 +1,60 @@
+{
+  "model": "Qwen/Qwen3.5-4B",
+  "server": {
+    "max_model_len": 131072,
+    "enable_chunked_prefill": true,
+    "enable_prefix_caching": true,
+    "mamba_cache_mode": "align",
+    "language_model_only": true,
+    "kv_offloading_backend": "native"
+  },
+  "grid": {
+    "max_num_batched_tokens": [
+      16384,
+      32768,
+      65536,
+      131072,
+      262144
+    ],
+    "kv_offloading_size": [
+      null,
+      16,
+      32,
+      64
+    ],
+    "max_num_seqs": [
+      16,
+      32,
+      64,
+      128
+    ]
+  },
+  "concurrency": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "workloads": [
+    {
+      "name": "independent-8k",
+      "input_tokens": 8192,
+      "output_tokens": 512
+    },
+    {
+      "name": "shared-prefix-32k",
+      "input_tokens": 1024,
+      "prefix_tokens": 31744,
+      "output_tokens": 512
+    }
+  ],
+  "requests": 128,
+  "warmup_requests": 8,
+  "repeats": 2,
+  "seed": 42,
+  "startup_timeout": 1800,
+  "benchmark_timeout": 1800,
+  "latency_limits_ms": {},
+  "sample_settings": 16,
+  "measurement_seconds": 120
+}
