@@ -133,3 +133,7 @@ assistant tool calls and tool-result messages exactly as stored in the source.
 RL records retain the source fields `prompt`, `answer`, `output`, `feedback`,
 `record_id`, `rubric_index`, `source`, and `tools`. The label environment consumes
 `prompt` and `answer`; the remaining fields preserve the richer interchange format.
+
+- [Search-agent eval and trace replay](search-agent-eval/README.md): a small
+  BrowseComp+ webterminal/Quokka eval against an existing registry, submitted
+  through Rexs, followed by throughput tuning on its saved traces.

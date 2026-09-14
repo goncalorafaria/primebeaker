@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${REXS_PROFILE:?Set REXS_PROFILE to your Slurm/Rexs profile}"
+exec python -m rexs.beaker "$@"
