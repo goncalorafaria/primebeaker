@@ -186,6 +186,8 @@ class PrimeBeakerCLI:
         self.services = LiteRegistryServices()
         self.judge = JudgeCatalogCLI()
         self.evaluation = PythonEvaluationCLI()
+        from primebeaker.vllm_sweep import SweepCLI
+        self.vllm_sweep = SweepCLI()
 
     @property
     def watcher(self) -> Any:
