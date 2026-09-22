@@ -2,7 +2,7 @@
 
 Raw ``sojuL/RubricHub_v1`` rows are adapted once at dataset load time. The
 runtime scorer consumes canonical lower-case ``rubrics`` with ``text`` and
-positive ``weight`` fields, samples at most ``max_rubrics`` criteria
+signed nonzero ``weight`` fields, samples at most ``max_rubrics`` criteria
 reproducibly, and sends the complete sample in one judge request.
 """
 
@@ -22,6 +22,9 @@ from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
 import verifiers as vf
 
 from literegistry_tool_client import JudgeClient
+from primebeaker.environments.signed_rubrics import (
+    nonzero_weight, weight_normalizer, judge_criterion, signed_sample_indexes,
+)
 
 
 DEFAULT_RUBRICHUB_DATASET = "sojuL/RubricHub_v1"
@@ -72,7 +75,9 @@ def _prompt_text(prompt: Any) -> str:
             messages.append({"role": role.strip(), "content": content})
         if not messages:
             raise ValueError("policy prompt must not be empty")
-        return json.dumps(messages, ensure_ascii=False, separators=(",", ":"))
+        if len(messages) == 1 and messages[0]["role"] == "user":
+            return messages[0]["content"]
+        return "\n\n".join(f"{message['role']}:\n{message['content']}" for message in messages)
     raise TypeError("policy prompt must be text or OpenAI-style messages")
 
 
@@ -142,7 +147,7 @@ def _canonical_rubrics(payload: Any) -> list[dict[str, Any]]:
         normalized.append(
             {
                 "text": text.strip(),
-                "weight": _positive_weight(
+                "weight": nonzero_weight(
                     rubric.get("weight"), field=f"rubrics[{index}].weight"
                 ),
                 "original_index": original_index,
@@ -298,9 +303,7 @@ def select_rubrics(
         return normalized
     seed_material = f"{sample_seed}\\0{record_id}".encode("utf-8")
     derived_seed = int.from_bytes(hashlib.sha256(seed_material).digest(), "big")
-    indexes = sorted(
-        random.Random(derived_seed).sample(range(len(normalized)), max_rubrics)
-    )
+    indexes = signed_sample_indexes(normalized, max_rubrics, random.Random(derived_seed))
     return [normalized[index] for index in indexes]
 
 
@@ -359,6 +362,7 @@ class JTCJudgeRubric(vf.Rubric):
         max_rubrics: int = 8,
         rubric_sample_seed: int = 0,
         non_termination_penalty: float = -0.25,
+        invalid_output_penalty: float = 0.0,
         orphan_think_close_penalty: float = -0.2,
         shadow_judge_client: JudgeOutputClient | None = None,
         shadow_judge_model_path: str | None = None,
@@ -417,6 +421,9 @@ class JTCJudgeRubric(vf.Rubric):
         self.judge_service_model_path = judge_service_model_path.strip()
         self.max_rubrics = max_rubrics
         self.rubric_sample_seed = rubric_sample_seed
+        if isinstance(invalid_output_penalty, bool) or not isinstance(invalid_output_penalty, (int, float)) or not math.isfinite(invalid_output_penalty) or invalid_output_penalty > 0:
+            raise ValueError("invalid_output_penalty must be finite and non-positive")
+        self.invalid_output_penalty = float(invalid_output_penalty)
         self.non_termination_penalty = float(non_termination_penalty)
         self.orphan_think_close_penalty = float(orphan_think_close_penalty)
         self.shadow_judge_client = shadow_judge_client
@@ -534,7 +541,7 @@ class JTCJudgeRubric(vf.Rubric):
                 service_model_path=self.shadow_judge_service_model_path,
             )
             shadow_judgments = _validated_judgments(response, selected)
-            selected_weight_sum = sum(float(item["weight"]) for item in shadow_judgments)
+            selected_weight_sum = weight_normalizer(shadow_judgments)
             shadow_weighted_pass_sum = sum(
                 float(item["weighted_pass"]) for item in shadow_judgments
             )
@@ -555,7 +562,7 @@ class JTCJudgeRubric(vf.Rubric):
                 )
             agreements = sum(float(pair["agreement"]) for pair in pairs)
             weighted_agreements = sum(
-                float(pair["weight"]) * float(pair["agreement"]) for pair in pairs
+                abs(float(pair["weight"])) * float(pair["agreement"]) for pair in pairs
             )
             primary_passes = sum(
                 float(pair["primary"]["label"] == "pass") for pair in pairs
@@ -586,7 +593,7 @@ class JTCJudgeRubric(vf.Rubric):
                     "pairs": pairs,
                     "num_judgments": len(pairs),
                     "label_agreement": agreements / count,
-                    "weighted_label_agreement": weighted_agreements / selected_weight_sum,
+                    "weighted_label_agreement": weighted_agreements / sum(abs(float(pair["weight"])) for pair in pairs),
                     "primary_pass_rate": primary_passes / count,
                     "shadow_pass_rate": shadow_passes / count,
                     "primary_pass_shadow_fail_rate": primary_pass_shadow_fail / count,
@@ -655,13 +662,13 @@ class JTCJudgeRubric(vf.Rubric):
         request = {
             "input": _prompt_text(prompt),
             "output": output_text,
-            "rubrics": [str(rubric["text"]) for rubric in selected],
+            "rubrics": [judge_criterion(rubric) for rubric in selected],
             "model": self.judge_model_path,
             "service_model_path": self.judge_service_model_path,
         }
         response = await self.judge_client.verify_output(**request)
         judgments = _validated_judgments(response, selected)
-        selected_weight_sum = sum(float(item["weight"]) for item in judgments)
+        selected_weight_sum = weight_normalizer(judgments)
         if not math.isfinite(selected_weight_sum) or selected_weight_sum <= 0:
             raise RuntimeError("selected rubric weight sum must be positive")
         weighted_pass_sum = sum(float(item["weighted_pass"]) for item in judgments)
@@ -683,6 +690,7 @@ class JTCJudgeRubric(vf.Rubric):
                 "judgments": judgments,
                 "weighted_pass_sum": weighted_pass_sum,
                 "selected_weight_sum": selected_weight_sum,
+                "weight_normalization": "sampled_positive_weights",
                 "rubric_score_before_format_penalties": rubric_score,
                 "orphan_think_close_tag": has_orphan_think_close,
                 "orphan_think_close_penalty": self.orphan_think_close_penalty,
@@ -710,7 +718,7 @@ class JTCJudgeRubric(vf.Rubric):
                 sample_seed=self.rubric_sample_seed,
                 record_id=source_record_id,
             )
-            selected_weight_sum = sum(float(item["weight"]) for item in selected)
+            selected_weight_sum = weight_normalizer(selected)
             existing_info = state.get("info")
             info = dict(existing_info) if isinstance(existing_info, Mapping) else {}
             try:
@@ -737,6 +745,7 @@ class JTCJudgeRubric(vf.Rubric):
                 "judgments": [],
                 "weighted_pass_sum": 0.0,
                 "selected_weight_sum": selected_weight_sum,
+                "weight_normalization": "sampled_positive_weights",
                 "non_termination_penalty": self.non_termination_penalty,
                 "orphan_think_close_tag": has_orphan_think_close,
                 "orphan_think_close_penalty": self.orphan_think_close_penalty,
@@ -762,7 +771,7 @@ class JTCJudgeRubric(vf.Rubric):
                 state=state,
             )
         except ValueError as error:
-            if str(error) != "final assistant content must be non-empty text":
+            if str(error) not in {"final assistant content must be non-empty text", "completion must contain an assistant message"}:
                 raise
             source_record_id, rubrics = _answer_payload(state.get("answer", ""))
             selected = select_rubrics(
@@ -771,10 +780,10 @@ class JTCJudgeRubric(vf.Rubric):
                 sample_seed=self.rubric_sample_seed,
                 record_id=source_record_id,
             )
-            selected_weight_sum = sum(float(item["weight"]) for item in selected)
+            selected_weight_sum = weight_normalizer(selected)
             existing_info = state.get("info")
             info = dict(existing_info) if isinstance(existing_info, Mapping) else {}
-            score = 0.0
+            score = self.invalid_output_penalty
             info["jtc_rubrichub_judge"] = {
                 "status": "invalid_policy_output",
                 "error": str(error),
@@ -790,6 +799,7 @@ class JTCJudgeRubric(vf.Rubric):
                 "judgments": [],
                 "weighted_pass_sum": 0.0,
                 "selected_weight_sum": selected_weight_sum,
+                "weight_normalization": "sampled_positive_weights",
                 "orphan_think_close_tag": False,
                 "orphan_think_close_penalty": self.orphan_think_close_penalty,
                 "applied_orphan_think_close_penalty": 0.0,
@@ -856,6 +866,7 @@ def load_environment(
     max_rubrics: int = 8,
     rubric_sample_seed: int = 0,
     non_termination_penalty: float = -0.25,
+    invalid_output_penalty: float = 0.0,
     orphan_think_close_penalty: float = -0.2,
     shadow_judge_model_path: str | None = None,
     shadow_judge_server_url: str | None = None,
@@ -890,6 +901,7 @@ def load_environment(
             max_rubrics=max_rubrics,
             rubric_sample_seed=rubric_sample_seed,
             non_termination_penalty=non_termination_penalty,
+            invalid_output_penalty=invalid_output_penalty,
             orphan_think_close_penalty=orphan_think_close_penalty,
             shadow_judge_client=shadow_judge_client,
             shadow_judge_model_path=shadow_judge_model_path,
