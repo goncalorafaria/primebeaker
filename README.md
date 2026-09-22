@@ -392,3 +392,52 @@ infrastructure.
 ## vLLM throughput tuning
 
 `primebeaker vllm-sweep` benchmarks real eval trace subsets or synthetic workloads, samples throughput and GPU utilization, and preserves partial results for later analysis. Trials run sequentially within a Rexs allocation. See [the sweep guide](examples/vllm-sweep/README.md).
+
+## Rubric judge worker
+
+Install `pip install 'primebeaker[judge]'` (or `pip install '.[judge]'` from a
+source checkout). This uses the published `jtc-core==0.3.0` distribution;
+its Python imports remain `jtc`.
+
+The service supports grouped rubrics and per-rubric tool workflows, preserves
+completed judgments when retrying unfinished rubrics, and registers its `/judge`
+endpoint in the shared Redis service registry.
+
+Start a LiteRegistry gateway locally on the worker, then launch:
+
+```bash
+python -m primebeaker.gateway --registry redis://registry-host:6379 --port 1212
+# In another process on the same host:
+primebeaker-judge --registry redis://registry-host:6379 \
+  --model-gateway-url http://127.0.0.1:1212 \
+  --tool-server-url http://127.0.0.1:1212 --port 8090
+```
+
+`python -m primebeaker.judge.judge_server` is an equivalent entry point.
+`--workers N` starts independent Uvicorn worker processes. Model inference goes
+through the local gateway, which discovers available replicas; the worker does
+not select individual model endpoints or wait for every planned replica.
+
+The default profiles and templates come from the installed PrimeBeaker judge
+catalog (`primebeaker judge list`). Use `--model-profiles-dir /path/to/profiles`
+for deployment-specific model paths and settings. Requests and responses retain
+the existing `input`, `output`, `rubrics`, `model`, and `judgments` schema.
+
+Deployment launchers can replace their rexs-local `sys.path` insertion and
+`from judge_server import ...` with:
+
+```python
+from primebeaker.judge.judge_server import JudgeServer, JudgeServerConfig
+
+server = JudgeServer(JudgeServerConfig(
+    registry=registry,
+    model_gateway_url=gateway,
+    tool_server_url=gateway,
+    model_profiles_dir=str(profiles),
+))
+```
+
+No `server.model_registry` override is needed. Head discovery remains the
+launcher's responsibility: resolve the shared SQLite head registry and start
+the local gateway against the discovered Redis registry. Rexs remains responsible
+for Slurm launch and supervision.
