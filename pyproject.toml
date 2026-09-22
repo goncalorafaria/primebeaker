@@ -11,8 +11,9 @@ requires-python = "~=3.12.0"
 dependencies = ["fire>=0.7.1", "pydantic>=2.7", "literegistry-tool-client>=0.1.0,<0.2"]
 
 [project.optional-dependencies]
-evaluation = ["jtc[evals,harness]==0.3.0"]
-watcher = ["fastapi", "jtc==0.3.0", "PyYAML>=6.0", "uvicorn", "wandb"]
+judge = ["primebeaker[runtime]", "jtc-core[evals,harness]==0.3.0", "openai", "starlette"]
+evaluation = ["jtc-core[evals,harness]==0.3.0"]
+watcher = ["fastapi", "jtc-core==0.3.0", "PyYAML>=6.0", "uvicorn", "wandb"]
 runtime = [
     "aiohttp",
     "datasets",
@@ -23,10 +24,11 @@ runtime = [
     "verifiers[harbor]==0.2.1",
 ]
 test = ["pytest>=8"]
-full = ["primebeaker[runtime,evaluation,watcher]"]
+full = ["primebeaker[runtime,evaluation,watcher,judge]"]
 
 [project.scripts]
 primebeaker = "primebeaker.cli:main"
+primebeaker-judge = "primebeaker.judge.judge_server:cli"
 primebeaker-images = "primebeaker.images.__main__:main"
 
 [tool.setuptools]
@@ -34,6 +36,7 @@ packages = [
     "primebeaker",
     "primebeaker.environments",
     "primebeaker.images",
+    "primebeaker.judge",
     "primebeaker.resources",
     "primebeaker.resources.judge_profiles",
     "primebeaker.resources.judge_templates",
