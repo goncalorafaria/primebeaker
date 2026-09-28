@@ -43,6 +43,10 @@ packages = [
     "primebeaker.resources.templates",
     "primebeaker.runtime",
     "primebeaker.watcher",
+    "primebeaker_jtc_tool_label",
+    "primebeaker_articulated_harness",
+    "primebeaker_rubrichub_judge",
+    "primebeaker_mc_accuracy",
 ]
 package-dir = {"" = "src"}
 
