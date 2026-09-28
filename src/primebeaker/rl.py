@@ -43,10 +43,12 @@ class RLTomlMetadata(BaseModel):
         if not toml_path.is_file():
             raise FileNotFoundError(toml_path)
         config = load_toml(toml_path)
-        wandb = config.get("wandb")
+        # prime-rl >= 0.9 moved the shared W&B block to [monitors.wandb].
+        monitors = config.get("monitors")
+        wandb = config.get("wandb") or (monitors.get("wandb") if isinstance(monitors, dict) else None)
         deployment = config.get("deployment")
         if not isinstance(wandb, dict) or not isinstance(deployment, dict):
-            raise ValueError("RL TOML needs [wandb] and [deployment] tables")
+            raise ValueError("RL TOML needs [wandb] (or [monitors.wandb]) and [deployment] tables")
         try:
             return cls(
                 toml_path=toml_path,
