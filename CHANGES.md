@@ -2,7 +2,16 @@
 
 ## Replay and rubric judging — October 2026
 
-This records the replay workflow used for the latest dataset and judge runs. Several implementation changes still live in local scripts or run bundles rather than the published PrimeBeaker package. This document is not a claim that those changes have been integrated into the package.
+This records the replay workflow used for the latest dataset and judge runs. This PR integrates the continuation environment, shared SWERL shell wrapper, standalone Podman session adapter, and timeout settings. Dataset construction and rubric-judge orchestration still live in external run bundles; they are not included in the package by this PR.
+
+### Implementation included in this PR
+
+- Package `PodmanTerminalReplayEnv` and shared `ReplayShellClient`, including fresh Bash, cwd/export persistence, and stdin transfer for oversized commands.
+- Use the standalone LiteRegistry `PodmanClient` for replay sessions without automatic retries of unknown command outcomes.
+- Require Docker Hub references, reject runtime setup archives and injected task services, and apply the same SWERL shell to every supported replay source. Reference suffixes stay outside policy context.
+- Raise solver command/test deadlines to 300 seconds, request timeout to 360 seconds, and handshake timeout to 900 seconds. Keep the source's exact exit semantics or its explicitly declared boolean success encoding.
+- Advertise the solver's `bash` completion-marker protocol without a second `submit` action. The rubric judge's separate `submit` tool is unchanged.
+- Update runtime dependencies to LiteRegistry 1.0.60, Podman client 0.1.6, base deployment 0.1.7, and Podman Beaker 0.2.21; provide uv overrides for older transitive JTC pins.
 
 ### Active replay workflow
 
@@ -29,11 +38,11 @@ This records the replay workflow used for the latest dataset and judge runs. Sev
 
 | Component | Current location/status |
 | --- | --- |
-| Podman solver environment | `src/primebeaker/environments/podman_terminal_env.py`; the shared local checkout still enforces a 60-second command/test limit. It is not aligned with the active 300-second replay settings. |
-| Replay continuation environment | Local, untracked `src/primebeaker/environments/podman_terminal_replay_env.py`; contains both a legacy persistent shell and a Vanillux fresh-Bash wrapper. Its helper setup calls still use 10-second deadlines. Do not assume it is identical to the active run bundle. |
+| Podman solver environment | `src/primebeaker/environments/podman_terminal_env.py`; this PR updates the package deadlines to 300 seconds. The original shared checkout may still contain older local settings until updated. |
+| Replay continuation environment | Packaged by this PR at `src/primebeaker/environments/podman_terminal_replay_env.py`, using the shared fresh-Bash wrapper and 300-second setup calls. This continuation environment accepts successful references; it is not the separate positive/negative judge-dataset filter. |
 | Replay comparison/filter scripts | Local files under `examples/podman-terminal/`; older filters use successful final grading rather than the latest exact-count criterion. |
 | Current validated dataset pipeline | External run bundle `records/tmax-rubric-matched-replay-20261019`, outside this repository. It owns the latest count matching, source preservation, and judge-input sanitization. |
-| Active replay runtime | External dataset bundle's `runtime/glm_replay_core.py`, copied into run-specific workflows. Package integration remains outstanding. |
+| Active replay runtime | External dataset bundle's `runtime/glm_replay_core.py`; its SWERL shell is integrated here as `environments/replay_shell.py`. Full validation-run orchestration remains external. |
 | Judge orchestration | JTC grouped binary-submit workflow, with a run-specific `bash` alias adapter; not implemented solely by PrimeBeaker. |
 | Gateway/Redis/client fixes and network-enabled worker image | LiteRegistry PRs, listed below; these require the corresponding client versions and rebuilt deployment images. |
 
@@ -57,4 +66,4 @@ The network-enabled successful-Shashank cohort had 10,307 exact final-count matc
 
 Remaining discrepancies include historical dependency-version drift, user-namespace permission behavior, background-service timing/port occupancy, and variable timestamps, addresses, certificate keys, and archive metadata. Matching final counts alone does not establish identical intermediate behavior or validate rubric labels.
 
-This documentation update changes no runtime behavior and runs no tests. It does not resume RL training or redeploy the fleet.
+This PR changes replay runtime behavior and dependency requirements. Syntax and patch-whitespace checks are performed; no tests or live replays were run for this integration. It does not resume RL training, change active inference processes, or redeploy the fleet.
