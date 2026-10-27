@@ -36,6 +36,13 @@ pins. Preserve the pins for reproduction. Updating them is a separate image
 change requiring integration validation; do not run `submodule update --remote`
 and label the result as the same image.
 
+## Fresh terminal training with MC32 and FP8
+
+The [Qwen3.5-4B native solver recipe](../examples/podman-terminal/MC32-FP8.md)
+provides a taskset, direct bash harness, complete TOML, and preview/submission
+launcher. It starts from an initial container with no reference prefix. It uses
+the verified local MC32 source overlay and requires compatible CUDA 13 binaries.
+
 ## Choose the environment before choosing the image
 
 There are three different workflows:

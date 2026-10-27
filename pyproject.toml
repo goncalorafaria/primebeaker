@@ -23,6 +23,7 @@ runtime = [
     "uvicorn",
     "verifiers[harbor]==0.2.1",
 ]
+terminal-native = ["aiohttp", "httpx", "openai", "literegistry-podman-client==0.1.7"]
 test = ["pytest>=8"]
 full = ["primebeaker[runtime,evaluation,watcher,judge]"]
 
@@ -47,6 +48,8 @@ packages = [
     "primebeaker_articulated_harness",
     "primebeaker_rubrichub_judge",
     "primebeaker_mc_accuracy",
+    "primebeaker_podman_solver",
+    "primebeaker_podman_solver_harness",
 ]
 package-dir = {"" = "src"}
 
@@ -55,6 +58,7 @@ primebeaker = [
     "multinode_*_role.sh",
     "images/*.json",
     "images/*.md",
+    "images/*.sh",
     "images/Dockerfile.*",
     "resources/judge_profiles/*.json",
     "resources/judge_templates/*.json",
