@@ -1,0 +1,219 @@
+# Native fresh-container solver; launch with launch-mc32.py. No replay prefix.
+max_steps = 400
+output_dir = "/weka/your-project/outputs"
+clean = false
+
+[run]
+name = "terminal-qwen35-4b-mc32-fp8"
+
+[trainer]
+score_centering_token_chunk_size = 128
+
+[trainer.loss]
+score_centering = true
+type = "icepop"
+ratio_low = 0.2
+ratio_high = 5.0
+aggregation = "token_mean"
+score_centering_estimator = "mc32"
+
+[trainer.model]
+cp = 1
+dp_replicate = 1
+cp_style = "ulysses"
+fused_lm_head_token_chunk_size = "disabled"
+name = "Qwen/Qwen3.5-4B"
+seq_len = 65536
+optimization_dtype = "float32"
+reduce_dtype = "float32"
+attn = "flash_attention_2"
+impl = "custom"
+fsdp_cpu_offload = false
+optim_cpu_offload = false
+
+[trainer.model.compile]
+fullgraph = false
+
+[trainer.model.ac]
+mode = "full"
+freq = 1
+
+[trainer.optim]
+lr = 5e-07
+max_norm = 1.0
+weight_decay = 0.0
+betas1 = 0.95
+betas2 = 0.95
+
+[orchestrator]
+batch_size = 256
+group_size = 16
+seq_len = 65536
+max_off_policy_steps = 4
+
+[orchestrator.concurrency]
+max_inflight = 64
+
+[orchestrator.model]
+name = "Qwen/Qwen3.5-4B"
+
+[orchestrator.train]
+
+[orchestrator.train.sampling]
+max_completion_tokens = 16384
+temperature = 1.0
+score_centering_samples = 32
+top_p = 1.0
+
+[orchestrator.train.sampling.extra_body]
+
+[orchestrator.train.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.train.source]]
+name = "terminal-train"
+shuffle = true
+
+[orchestrator.train.source.env]
+
+[orchestrator.train.source.env.taskset]
+id = "primebeaker-podman-solver"
+dataset = "examples/podman-terminal/data/train.jsonl"
+
+[orchestrator.train.source.env.taskset.task]
+test_reward = 1.0
+completion_reward = 0.0
+invalid_tool_penalty = 0.1
+
+[orchestrator.train.source.env.taskset.task.execution]
+gateway_url = ""
+workdir = "/home/user"
+max_tool_calls = 128
+command_timeout = 60
+test_timeout = 60
+
+[orchestrator.train.source.env.agent]
+max_turns = 129
+max_output_tokens = 61440
+
+[orchestrator.train.source.env.agent.harness]
+id = "primebeaker-podman-solver-harness"
+
+[orchestrator.train.source.env.agent.runtime]
+type = "subprocess"
+
+[orchestrator.eval]
+interval = 25
+
+[orchestrator.eval.sampling]
+max_completion_tokens = 16384
+temperature = 1.0
+top_p = 1.0
+
+[orchestrator.eval.sampling.extra_body]
+
+[orchestrator.eval.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.eval.source]]
+name = "terminal-eval"
+num_examples = 32
+group_size = 1
+
+[orchestrator.eval.source.env]
+
+[orchestrator.eval.source.env.taskset]
+id = "primebeaker-podman-solver"
+dataset = "examples/podman-terminal/data/validation.jsonl"
+
+[orchestrator.eval.source.env.taskset.task]
+test_reward = 1.0
+completion_reward = 0.0
+invalid_tool_penalty = 0.1
+
+[orchestrator.eval.source.env.taskset.task.execution]
+gateway_url = ""
+workdir = "/home/user"
+max_tool_calls = 128
+command_timeout = 60
+test_timeout = 60
+
+[orchestrator.eval.source.env.agent]
+max_turns = 129
+max_output_tokens = 61440
+
+[orchestrator.eval.source.env.agent.harness]
+id = "primebeaker-podman-solver-harness"
+
+[orchestrator.eval.source.env.agent.runtime]
+type = "subprocess"
+
+[orchestrator.renderer]
+name = "qwen3.5"
+enable_thinking = true
+thinking_retention = "tool_cycle"
+
+[deployment]
+type = "single_node"
+gpus_per_node = 8
+num_train_gpus = 2
+num_infer_gpus = 6
+
+[weight_broadcast]
+type = "nccl"
+timeout = 3600
+
+[ckpt]
+interval = 50
+keep_last = 1
+keep_interval = 100
+
+[log]
+level = "info"
+
+[monitors]
+
+[monitors.wandb]
+project = "terminal-rl"
+name = "terminal-qwen35-4b-mc32-fp8"
+tags = ["terminal-solver", "mc32", "fp8", "fresh-container"]
+
+[inference]
+
+[inference.server]
+host = "0.0.0.0"
+port = 8000
+
+[inference.env_vars]
+VLLM_HTTP_TIMEOUT_KEEP_ALIVE = "75"
+VLLM_ATTENTION_BACKEND = "FLASH_ATTN"
+VLLM_USE_TRITON_FLASH_ATTN = "1"
+VLLM_SCORE_CENTERING_MC32 = "1"
+VLLM_USE_V2_MODEL_RUNNER = "1"
+VLLM_USE_COMPACT_LOGPROBS = "1"
+VLLM_PRIME_COMPACT_LOGPROBS = "0"
+VLLM_PRIME_FLASHINFER_SAMPLER_HEAD = "0"
+
+[inference.vllm]
+max_num_seqs = 32
+max_num_batched_tokens = 8192
+enforce_eager = false
+quantization = "fp8_per_block"
+max_logprobs = 32
+logprobs_mode = "processed_logprobs"
+model = "Qwen/Qwen3.5-4B"
+trust_remote_code = true
+max_model_len = 65536
+tool_call_parser = "qwen3_coder"
+reasoning_parser = "qwen3"
+dtype = "bfloat16"
+gpu_memory_utilization = 0.9
+api_server_count = 6
+enable_prefix_caching = true
+tensor_parallel_size = 1
+data_parallel_size = 6
+language_model_only = true
+
+[inference.deployment]
+type = "single_node"
+gpus_per_node = 8

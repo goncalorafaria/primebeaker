@@ -19,6 +19,12 @@ It includes:
   plus registry-backed scheduling for every packaged JTC workflow—including
   all verifier, TMAX/Podman, inference, and rubric-generation variants.
 
+## Current training stack
+
+See [current fork links and Podman RL setup](docs/current-training-stack.md) for
+GitHub revisions, the CUDA 13 compact-logprob image, native taskset configuration,
+NumPy packing deployment notes, and checkpoint retention.
+
 ## Install
 
 Tool clients are provided exclusively by the standalone

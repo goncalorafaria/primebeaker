@@ -1,5 +1,12 @@
 # Live Podman terminal-agent RL
 
+For fresh-container Qwen3.5-4B training with **MC32 score centering and FP8 inference**,
+use the [native terminal solver recipe](MC32-FP8.md). It does not replay a prefix.
+
+For new native PrimeRL runs, start with [current fork links and Podman RL setup](../../docs/current-training-stack.md). The older examples below use the legacy
+environment schema and their historical pinned runtime; selecting a newer image
+alone does not migrate them.
+
 This directory is a complete example for training an agent to solve a task in a
 fresh Podman container. It does not replay a saved trace. Every rollout starts
 from the dataset row's image, exposes the environment's `bash` tool, and runs
