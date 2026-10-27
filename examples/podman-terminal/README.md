@@ -1,5 +1,9 @@
 # Live Podman terminal-agent RL
 
+For new native PrimeRL runs, start with [current fork links and Podman RL setup](../../docs/current-training-stack.md). The older examples below use the legacy
+environment schema and their historical pinned runtime; selecting a newer image
+alone does not migrate them.
+
 This directory is a complete example for training an agent to solve a task in a
 fresh Podman container. It does not replay a saved trace. Every rollout starts
 from the dataset row's image, exposes the environment's `bash` tool, and runs
