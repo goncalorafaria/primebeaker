@@ -8,7 +8,7 @@ version = "0.4.0"
 description = "Self-contained Prime-RL environments, TOML tooling, and Beaker launchers."
 readme = "README.md"
 requires-python = "~=3.12.0"
-dependencies = ["fire>=0.7.1", "pydantic>=2.7", "literegistry-tool-client>=0.1.0,<0.2"]
+dependencies = ["fire>=0.7.1", "pydantic>=2.7", "literegistry-tool-client>=0.1.2,<0.2"]
 
 [project.optional-dependencies]
 judge = ["primebeaker[runtime]", "jtc-core[evals,harness]==0.3.0", "openai", "starlette"]
@@ -18,7 +18,11 @@ runtime = [
     "aiohttp",
     "datasets",
     "httpx",
-    "literegistry[base_deployment,podman_beaker]==1.0.48",
+    "literegistry-podman-client==0.1.6",
+    "transformers",
+    "literegistry-base-deployment==0.1.7",
+    "literegistry-podman-beaker==0.2.21",
+    "literegistry[base_deployment,podman_beaker]==1.0.60",
     "PyYAML>=6.0",
     "uvicorn",
     "verifiers[harbor]==0.2.1",
@@ -65,3 +69,7 @@ primebeaker = [
     "resources/templates/*.json",
     "watcher/README.md",
 ]
+
+[tool.uv]
+# jtc-core 0.3.0 pins older registry dependencies. Match the replay deployment.
+override-dependencies = ["literegistry==1.0.60", "literegistry-tool-client==0.1.2"]
