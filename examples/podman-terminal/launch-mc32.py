@@ -15,7 +15,7 @@ from primebeaker.rl import BeakerRLBackend, RLLaunchRequest
 root = Path(__file__).resolve().parents[2]
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--config', type=Path, default=Path(__file__).with_name('mc32-fp8-4b.toml'))
-p.add_argument('--image', required=True, help='Immutable Beaker image with matching CUDA 13 binary dependencies')
+p.add_argument('--image', required=True, help='Immutable Beaker image built from the pinned native MC32 forks')
 p.add_argument('--gateway-url', required=True)
 p.add_argument('--output-root', type=Path, required=True)
 p.add_argument('--cluster', default='ai2/jupiter')
@@ -23,12 +23,9 @@ p.add_argument('--workspace', default='ai2/oe-agents')
 p.add_argument('--budget', default='ai2/oe-omai')
 p.add_argument('--train-data', type=Path)
 p.add_argument('--validation-data', type=Path)
-p.add_argument('--mc32-root', type=Path, default=Path('/weka/gfaria/prime-rl-mc32/experiments/mc32'))
-p.add_argument('--vllm-source', type=Path, default=Path('/weka/gfaria/vllm-mc32'))
-p.add_argument('--base-source', type=Path, default=Path('/weka/gfaria/launches/quokka9b-verifiable-score-centering-lag16-20261013/runtime/prime-rl'))
-p.add_argument('--runtime-python', type=Path, default=Path('/weka/gfaria/experiments/reverse-text-online-20261013/venv/bin/python'))
-p.add_argument('--podman-client-source', type=Path, default=Path('/weka/gfaria/literegistry/literegistry_podman_client/src'))
-p.add_argument('--uv-executable', type=Path, default=Path('/weka/gfaria/.local/bin/uv'))
+p.add_argument('--runtime-python', type=Path, default=Path('/app/.venv/bin/python'))
+p.add_argument('--podman-client-source', type=Path, help='Optional shared application client source; otherwise use the installed package')
+p.add_argument('--uv-executable', type=Path, default=Path('/usr/local/bin/uv'))
 p.add_argument('--cuda-compat-dir', default='')
 p.add_argument('--submit', action='store_true')
 a = p.parse_args()
@@ -63,14 +60,13 @@ if not all(ids.values()):
 config = launch / 'train.toml'
 config.write_text(dump_toml_document(c))
 env = {
-    'PRIMEBEAKER_SOURCE': str(root), 'MC32_ROOT': str(a.mc32_root.resolve(strict=True)),
-    'MC32_VLLM_SOURCE': str(a.vllm_source.resolve(strict=True)),
-    'MC32_BASE_SOURCE': str(a.base_source.resolve(strict=True)),
-    'MC32_PYTHON': str(a.runtime_python.absolute()),
-    'PODMAN_CLIENT_SOURCE': str(a.podman_client_source.resolve(strict=True)),
+    'PRIMEBEAKER_SOURCE': str(root),
+    'MC32_PYTHON': str(a.runtime_python),
     'PODMAN_GATEWAY_URL': a.gateway_url, 'TERMINAL_RL_CONFIG': str(config),
-    'CUDA_COMPAT_DIR': a.cuda_compat_dir, 'MC32_UV': str(a.uv_executable.absolute()),
+    'CUDA_COMPAT_DIR': a.cuda_compat_dir, 'MC32_UV': str(a.uv_executable),
 }
+if a.podman_client_source is not None:
+    env['PODMAN_CLIENT_SOURCE'] = str(a.podman_client_source.resolve(strict=True))
 request = RLLaunchRequest.from_toml(
     config, image=a.image, workspace=a.workspace, clusters=(a.cluster,), budget=a.budget,
     priority='urgent', min_runtime_hours=1, working_dir=root, scratch_dir=launch,

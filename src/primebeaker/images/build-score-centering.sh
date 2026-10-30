@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build both repositories at the merged score-centering revisions.
-PRIME_RL_REVISION=${PRIME_RL_REVISION:-edac0a49313100c7b502602d02467bf5e35f6c2c}
-VLLM_REVISION=${VLLM_REVISION:-0ad34f5b6bd55ec8a3647ab39b2c8bf322d65fa0}
-IMAGE_TAG=${1:-prime-rl-score-centering:edac0a4-0ad34f5}
+# Build native MC32 support from merged fork revisions and pinned submodules.
+PRIME_RL_REVISION=${PRIME_RL_REVISION:-243cbb7d77702017b5f0e247afd7df35b07ee4e9}
+VLLM_REVISION=${VLLM_REVISION:-409c9efd1aeb0fdd3f32d06554e33f520534e273}
+IMAGE_TAG=${1:-prime-rl-score-centering:243cbb7-409c9ef-mc32}
 BASE_TAG="${IMAGE_TAG}-base"
 recipe_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 build_dir=$(mktemp -d "${TMPDIR:-/tmp}/primebeaker-score-build.XXXXXXXX")
@@ -25,5 +25,6 @@ docker build --file "$recipe_dir/Dockerfile.compact-logprobs" \
     --build-arg "BASE_IMAGE=$BASE_TAG" \
     --build-arg "VLLM_REVISION=$VLLM_REVISION" \
     --label "org.primebeaker.prime-rl.revision=$PRIME_RL_REVISION" \
+    --label "org.primebeaker.mc32.available=true" \
     --tag "$IMAGE_TAG" "$recipe_dir"
-printf 'Built %s\nPrimeRL: %s\nvLLM: %s\n' "$IMAGE_TAG" "$PRIME_RL_REVISION" "$VLLM_REVISION"
+printf 'Built %s\nPrimeRL: %s\nvLLM: %s\nMC32 available; estimator remains opt-in.\n' "$IMAGE_TAG" "$PRIME_RL_REVISION" "$VLLM_REVISION"

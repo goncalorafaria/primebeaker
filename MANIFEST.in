@@ -2,3 +2,4 @@ recursive-include examples *.md *.toml *.jsonl
 
 recursive-include examples/podman-terminal *.py *.sh
 recursive-include docs *.md
+recursive-include src/primebeaker/images/mc32 *.toml *.md

@@ -60,6 +60,8 @@ primebeaker = [
     "images/*.md",
     "images/*.sh",
     "images/Dockerfile.*",
+    "images/mc32/*.toml",
+    "images/mc32/*.md",
     "resources/judge_profiles/*.json",
     "resources/judge_templates/*.json",
     "resources/templates/*.json",

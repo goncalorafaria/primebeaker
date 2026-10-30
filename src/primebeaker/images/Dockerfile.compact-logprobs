@@ -2,8 +2,9 @@
 # BASE_IMAGE must provide Prime RL 0.9, Torch 2.13, and CUDA 13.0 vLLM 0.29.
 ARG BASE_IMAGE=prime-rl-cu130:local
 FROM ${BASE_IMAGE}
-ARG VLLM_REVISION=0ad34f5b6bd55ec8a3647ab39b2c8bf322d65fa0
+ARG VLLM_REVISION=409c9efd1aeb0fdd3f32d06554e33f520534e273
 LABEL org.primebeaker.vllm.revision=${VLLM_REVISION}
+LABEL org.primebeaker.mc32.available=true
 RUN uv run --no-project --python /app/.venv/bin/python python -c 'from importlib.metadata import version; import torch; assert version("vllm").split("+")[0] == "0.29.0"; assert version("torch").split("+")[0] == "2.13.0"; assert torch.version.cuda == "13.0"'
 RUN VLLM_TARGET_DEVICE=cuda \
     VLLM_VERSION_OVERRIDE=0.29.0+compact.${VLLM_REVISION} \
@@ -11,5 +12,6 @@ RUN VLLM_TARGET_DEVICE=cuda \
     VLLM_PRECOMPILED_WHEEL_LOCATION="https://github.com/vllm-project/vllm/releases/download/v0.29.0/vllm-0.29.0-cp38-abi3-manylinux_2_28_$(uname -m).whl" \
     uv pip install --python /app/.venv/bin/python --no-deps \
       "vllm @ git+https://github.com/goncalorafaria/vllm.git@${VLLM_REVISION}"
-RUN uv run --no-project --python /app/.venv/bin/python python -c 'import json, sys; from importlib.metadata import distribution; d = distribution("vllm"); assert json.loads(d.read_text("direct_url.json"))["vcs_info"]["commit_id"] == sys.argv[1]; assert d.locate_file("vllm/v1/worker/gpu/sample/compact_logprobs.py").is_file()' "${VLLM_REVISION}"
-ENV VLLM_USE_V2_MODEL_RUNNER=1 VLLM_USE_COMPACT_LOGPROBS=1
+RUN uv run --no-project --python /app/.venv/bin/python python -c 'import json, sys; from importlib.metadata import distribution; d = distribution("vllm"); assert json.loads(d.read_text("direct_url.json"))["vcs_info"]["commit_id"] == sys.argv[1]; assert all(d.locate_file(p).is_file() for p in ("vllm/v1/worker/gpu/sample/compact_logprobs.py", "vllm/v1/worker/gpu/sample/mc_logprobs.py", "vllm/mc_logprobs.py"))' "${VLLM_REVISION}"
+COPY mc32/rl-fragment.toml /opt/primebeaker/mc32-rl-fragment.toml
+ENV VLLM_USE_V2_MODEL_RUNNER=1 VLLM_USE_COMPACT_LOGPROBS=1 VLLM_SCORE_CENTERING_MC32=0

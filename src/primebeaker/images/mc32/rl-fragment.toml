@@ -1,0 +1,26 @@
+# Merge into a complete native RL config; MC32 is not the image's default estimator.
+[trainer]
+score_centering_token_chunk_size = 128
+
+[trainer.loss]
+type = "icepop"
+score_centering = true
+score_centering_estimator = "mc32"
+
+[orchestrator.train.sampling]
+score_centering_samples = 32
+temperature = 1.0
+top_p = 1.0
+# Omit top_k and score_centering_top_k, including on individual source overrides.
+
+[inference.vllm]
+logprobs_mode = "processed_logprobs"
+max_logprobs = 32
+# MC32 requires token stops and no speculative decoding.
+
+[inference.env_vars]
+VLLM_USE_V2_MODEL_RUNNER = "1"
+VLLM_USE_COMPACT_LOGPROBS = "1"
+VLLM_SCORE_CENTERING_MC32 = "1"
+VLLM_PRIME_COMPACT_LOGPROBS = "0"
+VLLM_PRIME_FLASHINFER_SAMPLER_HEAD = "0"

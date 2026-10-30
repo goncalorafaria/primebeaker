@@ -1,17 +1,17 @@
 # Current fork stack and Podman RL setup
 
-Source refs checked against GitHub on 2026-10-26 (Pacific). These are source
-references, not a claim that a new combined image has passed GPU validation.
+The standard recipe pins the merged native MC32 fork revisions below. These
+source pins do not imply that a new combined image has passed GPU validation.
 
 ## GitHub sources
 
 | Component | Fork / branch | Published revision observed |
 | --- | --- | --- |
 | PrimeBeaker | [goncalorafaria/primebeaker](https://github.com/goncalorafaria/primebeaker) | This checkout; local changes may not be published |
-| PrimeRL | [main](https://github.com/goncalorafaria/prime-rl/tree/main) | [`edac0a4`](https://github.com/goncalorafaria/prime-rl/commit/edac0a49313100c7b502602d02467bf5e35f6c2c) |
-| Renderers | [main](https://github.com/goncalorafaria/renderers/tree/main) | [`f91c3e7`](https://github.com/goncalorafaria/renderers/commit/f91c3e7061ce50ea405cdf54fd419a45cb51a152) |
-| Verifiers | [main](https://github.com/goncalorafaria/verifiers/tree/main) | [`78bb214`](https://github.com/goncalorafaria/verifiers/commit/78bb2144172c2e390e394161148a05acdf341082) |
-| vLLM compact extraction | [releases/v0.29.0](https://github.com/goncalorafaria/vllm/tree/releases/v0.29.0) | [`0ad34f5`](https://github.com/goncalorafaria/vllm/commit/0ad34f5b6bd55ec8a3647ab39b2c8bf322d65fa0) |
+| PrimeRL | [main](https://github.com/goncalorafaria/prime-rl/tree/main) | [`243cbb7`](https://github.com/goncalorafaria/prime-rl/commit/243cbb7d77702017b5f0e247afd7df35b07ee4e9) |
+| Renderers | [feat/packed-sampler-heads](https://github.com/goncalorafaria/renderers/tree/feat/packed-sampler-heads) | [`a56bb9d`](https://github.com/goncalorafaria/renderers/commit/a56bb9d046ada1c7a1f6fdb183549e0b0f5a7e1f) |
+| Verifiers | [feat/upstream-score-centering](https://github.com/goncalorafaria/verifiers/tree/feat/upstream-score-centering) | [`8a44b61`](https://github.com/goncalorafaria/verifiers/commit/8a44b6145905b19a94ec777dd7d8b06d4e4c9b0f) |
+| vLLM compact extraction | [releases/v0.29.0](https://github.com/goncalorafaria/vllm/tree/releases/v0.29.0) | [`409c9ef`](https://github.com/goncalorafaria/vllm/commit/409c9efd1aeb0fdd3f32d06554e33f520534e273) |
 | LiteRegistry / Podman services | [master](https://github.com/goncalorafaria/literegistry/tree/master) | [`ba51669`](https://github.com/goncalorafaria/literegistry/commit/ba516695577ffb4f897a706c0e64b5226b9022f1) |
 
 Use the vLLM **release branch above** for the CUDA 13 / vLLM 0.29 build.
@@ -25,23 +25,22 @@ PrimeRL and vLLM to the full revisions above. PrimeRL itself pins these submodul
 
 | Dependency | Revision used by the build |
 | --- | --- |
-| Renderers | [`308be44`](https://github.com/goncalorafaria/renderers/commit/308be44e6a9e7ffa346aaad7eace474676b7da4c) |
-| Verifiers | [`dbbdd69`](https://github.com/goncalorafaria/verifiers/commit/dbbdd69395b23022073b48f19909330751478972) |
+| Renderers | [`a56bb9d`](https://github.com/goncalorafaria/renderers/commit/a56bb9d046ada1c7a1f6fdb183549e0b0f5a7e1f) |
+| Verifiers | [`8a44b61`](https://github.com/goncalorafaria/verifiers/commit/8a44b6145905b19a94ec777dd7d8b06d4e4c9b0f) |
 | Prime environments | [`1213b73`](https://github.com/PrimeIntellect-ai/prime-envs/commit/1213b7336d33bdb7e1abd5d61f1e0e2295d001e1) |
 | Pydantic config | [`65b15df`](https://github.com/PrimeIntellect-ai/pydantic-config/commit/65b15dffba82d4be19efdaf8b2b9705cc1756be8) |
 | Prime kernels | [`3fb83eb`](https://github.com/PrimeIntellect-ai/prime-kernels/commit/3fb83eb7aa639693876034d92a8df29245372cdf) |
 
-The Renderers and Verifiers branch tips are newer than the build's submodule
-pins. Preserve the pins for reproduction. Updating them is a separate image
-change requiring integration validation; do not run `submodule update --remote`
-and label the result as the same image.
+The Renderers and Verifiers commits include the merged MC32/packed-transport
+changes. Preserve the gitlink pins for reproduction; updating submodules is a
+separate image change requiring integration validation.
 
 ## Fresh terminal training with MC32 and FP8
 
 The [Qwen3.5-4B native solver recipe](../examples/podman-terminal/MC32-FP8.md)
 provides a taskset, direct bash harness, complete TOML, and preview/submission
 launcher. It starts from an initial container with no reference prefix. It uses
-the verified local MC32 source overlay and requires compatible CUDA 13 binaries.
+the pinned native MC32 application image and requires compatible CUDA 13 binaries.
 
 ## Choose the environment before choosing the image
 
@@ -67,10 +66,12 @@ From the PrimeBeaker repository:
 
 ```bash
 bash src/primebeaker/images/build-score-centering.sh \
-  prime-rl-score-centering:edac0a4-0ad34f5
+  prime-rl-score-centering:243cbb7-409c9ef-mc32
 ```
 
-This builds the PrimeRL CUDA image and overlays the matching vLLM fork. The
+This builds PrimeRL and its pinned Renderers/Verifiers submodules, then installs
+the matching native vLLM fork. All MC32 implementation changes are committed in
+the forks; the image recipe applies no source patches or runtime overlays. The
 recipe requires CUDA 13.0, Torch 2.13 and vLLM 0.29.0. Publish the resulting image
 to your Beaker workspace and supply its immutable `beaker://...` URI explicitly.
 The historical default image catalog is not this image.
@@ -135,11 +136,16 @@ elsewhere. The current production jobs additionally use the local NumPy packing
 and activation-offload overlay listed below. Do not assume the published image
 includes every local overlay.
 
-See [PrimeRL's score-centering implementation and options](https://github.com/goncalorafaria/prime-rl/blob/edac0a49313100c7b502602d02467bf5e35f6c2c/docs/score-centering.md).
-MC32 is a separate local variant (`/weka/gfaria/prime-rl-mc32/experiments/mc32/README.md`),
-not a feature promised by the published pins above. Its Jupiter correctness
-verification passed; that does not establish a measured speedup or validate a
-newly assembled image.
+See [PrimeRL's score-centering implementation and options](https://github.com/goncalorafaria/prime-rl/blob/243cbb7d77702017b5f0e247afd7df35b07ee4e9/docs/score-centering.md).
+MC32 is included natively by these fork commits; see the
+[merged fork PRs and source pins](../src/primebeaker/images/mc32/README.md).
+Merge the [config fragment](../src/primebeaker/images/mc32/rl-fragment.toml)
+into a complete native RL config to select `score_centering_estimator="mc32"`,
+exactly 32 `score_centering_samples`, and `VLLM_SCORE_CENTERING_MC32=1`. Omit
+`top_k` and `score_centering_top_k`; use positive temperature and `top_p=1.0`.
+The packed transport retains duplicate IID draws. The prior experimental source
+verification does not validate a newly assembled image or establish a speedup.
+No new Docker image build, tests or GPU run were performed for this integration.
 
 ## Start Podman services
 

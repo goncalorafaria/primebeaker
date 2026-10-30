@@ -1,41 +1,25 @@
-"""Require the previously verified MC32 source snapshot before solver startup."""
-import importlib.util
+"""Validate installed native MC32 packages and the solver's RL configuration."""
 import json
 import os
-from pathlib import Path
+import tomllib
+from importlib.metadata import distribution
 
-root = Path(os.environ['MC32_ROOT']).resolve()
-spec = importlib.util.spec_from_file_location('mc32_snapshot', root / 'source_snapshot.py')
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-if Path(module.VLLM).resolve() != Path(os.environ["MC32_VLLM_SOURCE"]).resolve():
-    raise RuntimeError("Verification snapshot points at a different vLLM source")
-fingerprint = module.fingerprint()
-for report in root.glob('verification-*.json'):
-    data = json.loads(report.read_text())
-    if (isinstance(data, dict) and data.get('gpu_verified') and data.get('beaker_job_id')
-            and data.get('exitstatus') == 0 and data.get('source_hashes') == fingerprint):
-        print('MC32_GPU_VERIFIED', report, flush=True)
-        break
-else:
-    raise RuntimeError('No successful GPU verification matching the MC32 source snapshot')
-
-import packed_heads
+from renderers import packed_heads
 import renderers.client
 import verifiers.v1.trace
 import prime_rl.trainer.batch
 import prime_rl.trainer.rl.data
-import vllm
-for imported in (packed_heads, renderers.client, verifiers.v1.trace,
-                 prime_rl.trainer.batch, prime_rl.trainer.rl.data):
-    if not Path(imported.__file__).resolve().is_relative_to(root / 'runtime'):
-        raise RuntimeError(f'Incorrect packed runtime: {imported.__file__}')
-if not Path(vllm.__file__).resolve().is_relative_to(Path(os.environ['MC32_VLLM_SOURCE']).resolve()):
-    raise RuntimeError(f'Incorrect MC32 vLLM: {vllm.__file__}')
-
-# Schema validation is performed in the actual worker environment, before GPU launch.
-import tomllib
+import vllm.mc_logprobs
+import vllm.v1.worker.gpu.sample.mc_logprobs
 from prime_rl.configs.rl import RLConfig
+
+# The standard image installs the native vLLM fork directly from this commit.
+expected_vllm = "409c9efd1aeb0fdd3f32d06554e33f520534e273"
+metadata = distribution("vllm").read_text("direct_url.json")
+if metadata is None or json.loads(metadata).get("vcs_info", {}).get("commit_id") != expected_vllm:
+    raise RuntimeError("Use the pinned native MC32 image; installed vLLM source revision differs")
+
 with open(os.environ['TERMINAL_RL_CONFIG'], 'rb') as handle:
     RLConfig.model_validate(tomllib.load(handle))
+print('NATIVE_MC32_PACKAGES', packed_heads.__file__, flush=True)
 print('TERMINAL_MC32_CONFIG_READY', flush=True)

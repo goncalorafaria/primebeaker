@@ -65,30 +65,22 @@ rejected by task ID.
 
 ## Runtime requirements
 
-The published compact-logprob image is **not an MC32 image**. This recipe supports
-the existing verified MC32 Weka source overlay with a compatible CUDA 13 image,
-Python environment, and matching vLLM extensions. The setup records all selected
-paths in the Beaker environment. It does not silently install or overwrite a
-shared virtualenv.
+Build and publish the [standard native MC32 image](../../src/primebeaker/images/README.md#standard-score-centering-and-mc32-image-build).
+It pins the merged PrimeRL, Renderers, Verifiers and vLLM fork commits; no local
+MC32 source overlay or patched Python environment is required. Supply its
+immutable Beaker URI to the launcher. The default worker interpreter is
+`/app/.venv/bin/python`, with `uv` at `/usr/local/bin/uv`.
 
-Default paths point to the existing MC32 deployment:
+The image must also include PrimeBeaker's native solver and Podman client
+application dependencies. `primebeaker[terminal-native]` supplies those client
+and HTTP dependencies; do not install the historical `runtime` extra over the
+native MC32 ML stack. The launcher exposes this checkout's application `src`
+directory, while PrimeRL/Renderers/Verifiers/vLLM come from the installed image.
 
-- `/weka/gfaria/prime-rl-mc32/experiments/mc32`
-- `/weka/gfaria/vllm-mc32`
-- `/weka/gfaria/experiments/reverse-text-online-20261013/venv/bin/python`
-- `/weka/gfaria/literegistry/literegistry_podman_client/src`
-
-`mc32-preflight.py` requires a successful existing GPU verification receipt with
-matching source hashes and checks the packed-array imports, vLLM source path, and
-native RL configuration. It does not execute verification tests. The previous
-MC32 kernel verification does not validate this new solver integration; perform
-a bounded live smoke check before a full training launch.
-
-The two native solver packages are installed with PrimeBeaker. For a separately
-built application image, `primebeaker[terminal-native]` supplies the Podman client
-and HTTP dependencies; the matching MC32 Verifiers/Renderers/PrimeRL packages
-must already be present. Do not install the historical `runtime` extra over them.
-The source-overlay launcher uses the checkout's `src` directory directly.
+`mc32-preflight.py` checks native MC32 imports, the pinned vLLM VCS revision,
+and the native RL configuration before GPU startup. It does not run tests or
+claim a successful GPU validation of the assembled image. Validate the newly
+built image and solver integration before full training.
 
 ## Prepare and preview
 
@@ -100,24 +92,23 @@ your launcher environment:
 ```bash
 uv run --no-project --python /path/to/launcher-venv/bin/python \
   examples/podman-terminal/launch-mc32.py \
-  --image beaker://YOUR_CUDA13_BINARY_COMPATIBLE_IMAGE \
+  --image beaker://YOUR_NATIVE_MC32_APPLICATION_IMAGE \
   --gateway-url http://YOUR_GATEWAY:PORT \
   --output-root /weka/your-project/terminal-mc32
 ```
 
 This writes a unique resolved TOML and preview receipt, without submitting a job.
 Use `--train-data` and `--validation-data` for alternate task files. Use
-`--mc32-root`, `--vllm-source`, `--base-source`, `--runtime-python`, and
-`--podman-client-source`, and `--uv-executable` to bind a different verified deployment. The verification
-snapshot must describe those actual sources. Shared code and binary paths must
-be reachable in the worker, not just on the submission host.
+`--runtime-python` and `--uv-executable` only when those executables live at
+different paths inside the worker image. `--podman-client-source` optionally
+selects a shared application-client checkout; the installed client is used by
+default. No PrimeRL, Renderers, Verifiers or vLLM source paths are injected.
 
 The default target is Jupiter / `ai2/oe-agents`. Use
 `--cluster ai2/holmes --workspace ai2/oe-agents-holmes` for Holmes. If the Jupiter
 node needs CUDA compatibility libraries, explicitly add
 `--cuda-compat-dir /usr/local/cuda/compat`; no compatibility path is forced on Holmes.
-Select the image after checking the node driver and the existing MC32 runtime's
-binary requirements.
+Select the image after checking the node driver against its CUDA 13 binary requirements.
 
 Add **`--submit`** to launch. Every invocation prepares a fresh run identity;
 this helper does not resume an earlier run. Resume by using the saved TOML/run
