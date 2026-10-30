@@ -1,0 +1,70 @@
+--- a/verifiers/v1/graph.py
++++ b/verifiers/v1/graph.py
+@@ -127,8 +127,8 @@
+     `mask`: `mask` is "did the model sample this?" (assistant completion only); `is_content`
+     is "is this caller/model body vs scaffold?" — meaningful on every role, so observation
+     weighting (prime-rl `echo`) can train a tool/user message's *body* without its scaffold."""
+-    sampler_head_ids: list[list[int]] | None = None
+-    sampler_head_logprobs: list[list[float]] | None = None
++    sampler_head_ids: list[list[int]] | dict[str, bytes] | None = None
++    sampler_head_logprobs: list[list[float]] | dict[str, bytes] | None = None
+     logprobs: list[float] = Field(default_factory=list)
+     """Sampling logprobs for the sampled tokens — length equals the number of True entries in
+     `mask`; empty for input messages."""
+--- a/verifiers/v1/trace.py
++++ b/verifiers/v1/trace.py
+@@ -8,6 +8,7 @@
+ from typing import TYPE_CHECKING, Any, Generic
+ 
+ import numpy as np
++import packed_heads as ph
+ from pydantic import BaseModel, Field, PrivateAttr, computed_field, field_serializer
+ from renderers.base import MultiModalData
+ from typing_extensions import TypeVar
+@@ -253,26 +254,18 @@
+                     out.append(0.0)
+         return out
+ 
+-    def _sampler_head_rows(self, name: str) -> list[list] | None:
++    def _sampler_head_rows(self, name: str) -> dict[str, bytes] | None:
+         if not any(getattr(node, name) is not None for node in self.nodes):
+             return None
+-        result = []
+-        for node in self.nodes:
+-            rows = getattr(node, name)
+-            if rows is not None and len(rows) != sum(node.mask):
+-                raise ValueError("Sampler head rows must match sampled node tokens")
+-            i = 0
+-            for sampled in node.mask:
+-                result.append(rows[i] if sampled and rows is not None else [])
+-                i += int(sampled)
+-        return result
+-
+-    @property
+-    def sampler_head_ids(self) -> list[list[int]] | None:
++        dtype = np.int32 if name == "sampler_head_ids" else np.float32
++        return ph.concat([ph.align(getattr(node, name), node.mask, dtype) for node in self.nodes])
++
++    @property
++    def sampler_head_ids(self) -> dict[str, bytes] | None:
+         return self._sampler_head_rows("sampler_head_ids")
+ 
+     @property
+-    def sampler_head_logprobs(self) -> list[list[float]] | None:
++    def sampler_head_logprobs(self) -> dict[str, bytes] | None:
+         return self._sampler_head_rows("sampler_head_logprobs")
+ 
+     @property
+--- a/verifiers/v1/types.py
++++ b/verifiers/v1/types.py
+@@ -225,8 +225,8 @@
+     prompt_ids: list[int] = Field(default_factory=list)
+     completion_ids: list[int] = Field(default_factory=list)
+     completion_logprobs: list[float] = Field(default_factory=list)
+-    sampler_head_ids: list[list[int]] | None = None
+-    sampler_head_logprobs: list[list[float]] | None = None
++    sampler_head_ids: list[list[int]] | dict[str, bytes] | None = None
++    sampler_head_logprobs: list[list[float]] | dict[str, bytes] | None = None
+ 
+     # Transient carrier (excluded): per-message token spans into `prompt_ids` from the renderer,
+     # consumed by the turn's `commit` to attribute tokens per message, then dropped.

@@ -1,0 +1,342 @@
+--- a/vllm/v1/engine/logprobs.py
++++ b/vllm/v1/engine/logprobs.py
+@@ -47,6 +47,9 @@
+     ) -> "LogprobsProcessor":
+         sampling_params = request.sampling_params
+         assert sampling_params is not None
++        mc32 = (sampling_params.extra_args or {}).get("score_centering_samples") == 32
++        from vllm.mc_logprobs import MCLogprobs
++
+         num_logprobs = sampling_params.num_logprobs
+         num_prompt_logprobs = sampling_params.prompt_logprobs
+         return cls(
+@@ -55,6 +58,8 @@
+             logprobs=(
+                 None
+                 if num_logprobs is None
++                else MCLogprobs()
++                if mc32
+                 else create_sample_logprobs(sampling_params.flat_logprobs)
+             ),
+             prompt_logprobs=(
+@@ -82,6 +87,15 @@
+         assert self.cumulative_logprob is not None
+ 
+         token_ids_lst, logprobs_lst, ranks_lst, _ = logprobs_lists
++        from vllm.mc_logprobs import MCLogprobs
++
++        if isinstance(self.logprobs, MCLogprobs):
++            if self.tokenizer is not None:
++                raise ValueError("MC32 requires detokenize=False")
++            for ids, lp, rank in zip(token_ids_lst, logprobs_lst, ranks_lst):
++                self.logprobs.append_arrays(ids[:33], lp[:33], rank)
++                self.cumulative_logprob += float(lp[0])
++            return
+ 
+         for rank_np, logprobs_np, token_ids_np in zip(
+             ranks_lst, logprobs_lst, token_ids_lst
+--- a/vllm/v1/worker/gpu/sample/sampler.py
++++ b/vllm/v1/worker/gpu/sample/sampler.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++import os
+ 
+ import numpy as np
+ import torch
+@@ -44,6 +46,8 @@
+         reasoning_config: ReasoningConfig | None = None,
+         return_sampling_mask: bool = False,
+     ):
++        self.mc32 = os.environ.get("VLLM_SCORE_CENTERING_MC32") == "1"
++        self.mc_requests = np.zeros(max_num_reqs, dtype=bool)
+         self.logprobs_mode = logprobs_mode
+         self.compute_nans = envs.VLLM_COMPUTE_NANS_IN_LOGITS  # False by default.
+         self.use_fp64_gumbel = use_fp64_gumbel
+@@ -68,6 +72,27 @@
+     def add_request(
+         self, req_idx: int, prompt_len: int, sampling_params: SamplingParams
+     ) -> None:
++        mc = (sampling_params.extra_args or {}).get("score_centering_samples")
++        if mc is not None and not self.mc32:
++            raise ValueError("MC32 requires VLLM_SCORE_CENTERING_MC32=1")
++        self.mc_requests[req_idx] = mc is not None
++        if mc is not None:
++            if (
++                mc != 32
++                or sampling_params.logprobs != 32
++                or not sampling_params.flat_logprobs
++                or sampling_params.detokenize
++                or self.logprobs_mode != "processed_logprobs"
++                or sampling_params.temperature <= 0
++                or sampling_params.top_p != 1.0
++                or sampling_params.top_k > 0
++                or sampling_params.min_p != 0.0
++                or self.num_speculative_tokens != 1
++            ):
++                raise ValueError(
++                    "MC32 requires 32 probes, flat processed logprobs, "
++                    "no detokenization, positive temperature, no speculation"
++                )
+         self.sampling_states.add_request(req_idx, sampling_params)
+         self.penalties_state.add_request(req_idx, sampling_params)
+         self.logit_bias_state.add_request(req_idx, prompt_len, sampling_params)
+@@ -160,16 +185,47 @@
+                 logits = processed_logits
+             expanded_logits = logits.shape[0] != idx_mapping_np.shape[0]
+             cu_num_logits = cu_num_logits_np.tolist() if expanded_logits else None
+-            logprobs_tensors = compute_topk_scores(
+-                logits,
+-                num_logprobs,
+-                sampled,
+-                cu_num_logits,
+-                logprob_token_ids_state=self.logprob_token_ids_state,
+-                expanded_idx_mapping=input_batch.expanded_idx_mapping,
+-                max_per_req_token_ids=max_per_req_token_ids,
+-                logits_mode=self.logprobs_mode in ("raw_logits", "processed_logits"),
+-            )
++            mc_rows = self.mc_requests[idx_mapping_np]
++            if mc_rows.any():
++                from vllm.v1.worker.gpu.sample.mc_logprobs import compute_mc_scores
++
++                if expanded_logits or max_per_req_token_ids:
++                    raise ValueError(
++                        "MC32 does not support speculative or requested-token logprobs"
++                    )
++                logprobs_tensors = compute_mc_scores(
++                    processed_logits,
++                    sampled,
++                    self.sampling_states.seeds.gpu,
++                    expanded_idx_mapping,
++                    pos,
++                )
++                normal_requested = (~mc_rows) & (
++                    self.sampling_states.num_logprobs[idx_mapping_np] != NO_LOGPROBS
++                )
++                if normal_requested.any():
++                    from vllm.v1.outputs import LogprobsTensors
++
++                    normal = compute_topk_scores(logits, num_logprobs, sampled)
++                    ids, lp, ranks = normal[:3]
++                    # Probe rows occupy the first 33 slots; the processor slices
++                    # by request width, so other rows can request larger heads.
++                    mask = torch.as_tensor(mc_rows, device=ids.device)[:, None]
++                    ids[:, :33] = torch.where(mask, logprobs_tensors[0], ids[:, :33])
++                    lp[:, :33] = torch.where(mask, logprobs_tensors[1], lp[:, :33])
++                    logprobs_tensors = LogprobsTensors(ids, lp, ranks)
++            else:
++                logprobs_tensors = compute_topk_scores(
++                    logits,
++                    num_logprobs,
++                    sampled,
++                    cu_num_logits,
++                    logprob_token_ids_state=self.logprob_token_ids_state,
++                    expanded_idx_mapping=input_batch.expanded_idx_mapping,
++                    max_per_req_token_ids=max_per_req_token_ids,
++                    logits_mode=self.logprobs_mode
++                    in ("raw_logits", "processed_logits"),
++                )
+         else:
+             logprobs_tensors = None
+ 
+--- /dev/null
++++ b/vllm/mc_logprobs.py
+@@ -0,0 +1,71 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""NumPy-backed MC32 storage; never deduplicate independent draws."""
++
++import numpy as np
++
++from vllm.logprobs import FlatLogprobs
++
++
++class MCLogprobs(FlatLogprobs):
++    def __init__(self):
++        self._size = 0
++        self._ids = np.empty((64, 33), dtype=np.int32)
++        self._lp = np.empty((64, 33), dtype=np.float32)
++        self._ranks = np.empty(64, dtype=np.int64)
++
++    def append_arrays(self, ids, logprobs, rank):
++        ids, logprobs = np.asarray(ids), np.asarray(logprobs)
++        if ids.shape != (33,) or logprobs.shape != (33,):
++            raise ValueError("MC32 requires response token plus exactly 32 probes")
++        if self._size == len(self._ids):
++            capacity = max(64, 2 * self._size)
++            for name, shape, dtype in (
++                ("_ids", (capacity, 33), np.int32),
++                ("_lp", (capacity, 33), np.float32),
++                ("_ranks", (capacity,), np.int64),
++            ):
++                old = getattr(self, name)
++                new = np.empty(shape, dtype=dtype)
++                new[: self._size] = old[: self._size]
++                setattr(self, name, new)
++        self._ids[self._size] = ids
++        self._lp[self._size] = logprobs
++        self._ranks[self._size] = rank
++        self._size += 1
++
++    @property
++    def start_indices(self):
++        return np.arange(self._size, dtype=np.int64) * 33
++
++    @property
++    def end_indices(self):
++        return self.start_indices + 33
++
++    @property
++    def token_ids(self):
++        return self._ids[: self._size].reshape(-1)
++
++    @property
++    def logprobs(self):
++        return self._lp[: self._size].reshape(-1)
++
++    @property
++    def ranks(self):
++        ranks = np.zeros((self._size, 33), dtype=np.int64)
++        ranks[:, 0] = self._ranks[: self._size]
++        return ranks.reshape(-1)
++
++    @property
++    def decoded_tokens(self):
++        return np.full(self._size * 33, None, dtype=object)
++
++    def __getitem__(self, index):
++        if not isinstance(index, slice):
++            raise TypeError("MC probes cannot be converted to token-keyed dictionaries")
++        result = MCLogprobs()
++        result._ids = self._ids[: self._size][index].copy()
++        result._lp = self._lp[: self._size][index].copy()
++        result._ranks = self._ranks[: self._size][index].copy()
++        result._size = len(result._ids)
++        return result
+--- /dev/null
++++ b/vllm/v1/worker/gpu/sample/mc_logprobs.py
+@@ -0,0 +1,123 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Independent categorical probes, with replacement, from processed logits."""
++
++import torch
++
++from vllm.triton_utils import tl, triton
++from vllm.v1.outputs import LogprobsTensors
++from vllm.v1.worker.gpu.sample.compact_logprobs import _partials
++
++
++@triton.jit
++def _draw(
++    X,
++    Sample,
++    Max,
++    Sum,
++    Rank,
++    Seeds,
++    Mapping,
++    Positions,
++    OutIds,
++    OutLP,
++    OutRank,
++    V: tl.constexpr,
++    STRIDE: tl.constexpr,
++    TILES: tl.constexpr,
++    REDUCE: tl.constexpr,
++    BLOCK: tl.constexpr,
++):
++    row, draw = tl.program_id(0), tl.program_id(1)
++    t = tl.arange(0, REDUCE)
++    m = tl.load(Max + row * TILES + t, t < TILES, other=-float("inf"))
++    z = tl.load(Sum + row * TILES + t, t < TILES, other=0.0)
++    maximum = tl.max(m, 0)
++    mass = z * tl.exp(m - maximum)
++    cdf = tl.cumsum(mass, 0)
++    total = tl.sum(mass, 0)
++    req = tl.load(Mapping + row)
++    seed = tl.load(Seeds + req).to(tl.uint64) ^ 0x6A09E667F3BCC909
++    pos = tl.load(Positions + row).to(tl.uint32)
++    # A separate Philox domain leaves the response token's RNG untouched.
++    u = tl.rand(seed, pos * 32 + draw)
++    cdf_total = tl.sum(tl.where(t == TILES - 1, cdf, 0.0), 0)
++    target = tl.minimum(u * cdf_total, cdf_total * (1.0 - 1.1920928955078125e-7))
++    tile = tl.min(tl.where((cdf > target) & (mass > 0), t, TILES), 0)
++    before = tl.sum(tl.where(t == tile - 1, cdf, 0.0), 0)
++    tile_m = tl.sum(tl.where(t == tile, m, 0.0), 0)
++    # Avoid 0 * -inf when reducing masked empty tiles.
++    local_scale = tl.exp(tile_m - maximum)
++    j = tl.arange(0, BLOCK)
++    ids = tile * BLOCK + j
++    x = tl.load(X + row * STRIDE + ids, ids < V, other=-float("inf")).to(tl.float32)
++    weights = tl.exp(x - tile_m)
++    local_cdf = tl.cumsum(weights, 0)
++    local_total = tl.sum(tl.where(j == BLOCK - 1, local_cdf, 0.0), 0)
++    local_target = tl.minimum(
++        tl.maximum((target - before) / local_scale, 0.0),
++        local_total * (1.0 - 1.1920928955078125e-7),
++    )
++    token = tl.min(tl.where((local_cdf > local_target) & (weights > 0), ids, V), 0)
++    value = tl.load(X + row * STRIDE + token).to(tl.float32)
++    logz = maximum + tl.log(total)
++    tl.store(OutIds + row * 33 + draw + 1, token)
++    tl.store(OutLP + row * 33 + draw + 1, value - logz)
++    if draw == 0:
++        sampled = tl.load(Sample + row)
++        selected = tl.load(X + row * STRIDE + sampled).to(tl.float32)
++        r = tl.load(Rank + row * TILES + t, t < TILES, other=0)
++        tl.store(OutIds + row * 33, sampled)
++        tl.store(OutLP + row * 33, selected - logz)
++        tl.store(OutRank + row, tl.sum(r, 0))
++
++
++def compute_mc_scores(logits, sampled_token_ids, seeds, mapping, positions, block=4096):
++    """Return response token plus 32 IID probes; duplicate IDs are meaningful.
++
++    Inputs must have at least one finite logit per row and no NaNs/+inf.
++    Sampling is categorical up to FP32/PRNG precision. Memory is O(B * V/block),
++    not O(B * V * 32); normalization is exact over the processed support.
++    """
++    batch, vocab = logits.shape
++    if logits.stride(1) != 1 or sampled_token_ids.numel() != batch:
++        raise ValueError(
++            "MC32 requires contiguous vocabulary rows and one token per row"
++        )
++    tiles = triton.cdiv(vocab, block)
++    maxima = torch.empty((batch, tiles), device=logits.device, dtype=torch.float32)
++    sums = torch.empty_like(maxima)
++    ranks = torch.empty((batch, tiles), device=logits.device, dtype=torch.int32)
++    _partials[(batch, tiles)](
++        logits,
++        sampled_token_ids,
++        maxima,
++        sums,
++        ranks,
++        vocab,
++        logits.stride(0),
++        tiles,
++        block,
++    )
++    ids = torch.empty((batch, 33), device=logits.device, dtype=torch.int64)
++    lp = torch.empty((batch, 33), device=logits.device, dtype=torch.float32)
++    rank = torch.empty(batch, device=logits.device, dtype=torch.int64)
++    _draw[(batch, 32)](
++        logits,
++        sampled_token_ids,
++        maxima,
++        sums,
++        ranks,
++        seeds,
++        mapping,
++        positions,
++        ids,
++        lp,
++        rank,
++        vocab,
++        logits.stride(0),
++        tiles,
++        triton.next_power_of_2(tiles),
++        block,
++    )
++    return LogprobsTensors(ids, lp, rank)

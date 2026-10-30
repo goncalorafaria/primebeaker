@@ -447,3 +447,7 @@ No `server.model_registry` override is needed. Head discovery remains the
 launcher's responsibility: resolve the shared SQLite head registry and start
 the local gateway against the discovered Redis registry. Rexs remains responsible
 for Slurm launch and supervision.
+
+## MC32 training image recipe
+
+The [standard score-centering image build](src/primebeaker/images/README.md#standard-score-centering-and-mc32-image-build) includes opt-in MC32 sampling, trainer estimation, and packed-array transport. Use the bundled [config fragment](src/primebeaker/images/mc32/rl-fragment.toml) to select MC32; the default estimator remains top-k. Build and publish a new image explicitly. Existing training jobs and historical image catalog IDs are not updated by this recipe change.

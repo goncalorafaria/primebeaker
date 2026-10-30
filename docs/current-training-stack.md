@@ -67,10 +67,12 @@ From the PrimeBeaker repository:
 
 ```bash
 bash src/primebeaker/images/build-score-centering.sh \
-  prime-rl-score-centering:edac0a4-0ad34f5
+  prime-rl-score-centering:edac0a4-0ad34f5-mc32
 ```
 
-This builds the PrimeRL CUDA image and overlays the matching vLLM fork. The
+This applies the bundled MC32 trainer/config/packed-transport patches to the
+pinned PrimeRL, Renderers and Verifiers sources, builds the PrimeRL CUDA image,
+and overlays the matching vLLM fork plus its bundled MC32 kernel. The
 recipe requires CUDA 13.0, Torch 2.13 and vLLM 0.29.0. Publish the resulting image
 to your Beaker workspace and supply its immutable `beaker://...` URI explicitly.
 The historical default image catalog is not this image.
@@ -136,10 +138,17 @@ and activation-offload overlay listed below. Do not assume the published image
 includes every local overlay.
 
 See [PrimeRL's score-centering implementation and options](https://github.com/goncalorafaria/prime-rl/blob/edac0a49313100c7b502602d02467bf5e35f6c2c/docs/score-centering.md).
-MC32 is a separate local variant (`/weka/gfaria/prime-rl-mc32/experiments/mc32/README.md`),
-not a feature promised by the published pins above. Its Jupiter correctness
-verification passed; that does not establish a measured speedup or validate a
-newly assembled image.
+MC32 is included by the standard recipe through the bundled
+[MC32 source overlay](../src/primebeaker/images/mc32/README.md). Its manifest pins
+preimage and result hashes in addition to the fork revisions above; the patches
+fail on different source contents. The estimator remains opt-in. Merge the
+[MC32 config fragment](../src/primebeaker/images/mc32/rl-fragment.toml) into a
+complete native RL config, using `score_centering_estimator = "mc32"`, exactly32
+`score_centering_samples`, and `VLLM_SCORE_CENTERING_MC32=1`. Omit `top_k` and
+`score_centering_top_k`; use positive temperature and `top_p=1.0`. The packed
+transport retains duplicate IID draws. The existing experimental implementation
+had Jupiter correctness verification; that does not establish a measured speedup
+or validate a newly assembled image. No new Docker image or GPU run is claimed.
 
 ## Start Podman services
 
