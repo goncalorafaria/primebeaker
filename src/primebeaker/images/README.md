@@ -34,49 +34,45 @@ carry a duplicate evaluation Dockerfile.
 
 ## Standard score-centering and MC32 image build
 
-Build the merged PrimeRL source and vLLM kernel together:
+Build native MC32 support from the merged forks:
 
 ```bash
 bash src/primebeaker/images/build-score-centering.sh \
-  prime-rl-score-centering:edac0a4-0ad34f5-mc32
+  prime-rl-score-centering:243cbb7-409c9ef-mc32
 ```
 
-The script pins PrimeRL to `edac0a49313100c7b502602d02467bf5e35f6c2c`
-(PR #3, `main`) and vLLM to `0ad34f5b6bd55ec8a3647ab39b2c8bf322d65fa0`
-(PR #1, `releases/v0.29.0`). It checks out PrimeRL and its pinned submodules,
-applies the bundled MC32 and packed-transport patches to PrimeRL, Renderers and
-Verifiers, builds its `Dockerfile.cuda`, then applies the vLLM overlay below.
-MC32 support is included in every standard build; choosing the estimator remains
-opt-in. Source revisions are recorded in image labels, and
-[`mc32/manifest.json`](mc32/manifest.json) records patch and file checksums.
-Docker with BuildKit, Git, Python 3, and access to
-the source and package registries are required. Full commit hashes can be
-overridden with `PRIME_RL_REVISION` and `VLLM_REVISION` only when recorded source
-checksums still match. Different contents require updating patches and the
-manifest, and a distinct image tag. The script builds locally; it does not publish
-to Beaker.
+The builder pins PrimeRL to `243cbb7d77702017b5f0e247afd7df35b07ee4e9` and vLLM to
+`409c9efd1aeb0fdd3f32d06554e33f520534e273`. PrimeRL's recursive submodules pin Renderers to
+`a56bb9d046ada1c7a1f6fdb183549e0b0f5a7e1f` and Verifiers to
+`8a44b6145905b19a94ec777dd7d8b06d4e4c9b0f`. All MC32 code is native to these commits: no
+build-time source patches or copied runtime modules are used.
+
+Docker with BuildKit, Git, and access to the source/package registries are
+required. The build records source revisions in image labels. Commit hashes may
+be overridden with `PRIME_RL_REVISION` and `VLLM_REVISION`; use a distinct image
+tag and compatible native dependency commits. It builds locally and does not
+publish to Beaker.
 
 Use the [MC32 configuration fragment](mc32/rl-fragment.toml) and
-[implementation notes](mc32/README.md) to enable the estimator. The image keeps
-`topk` as the default and `VLLM_SCORE_CENTERING_MC32=0`; existing loss and sampling
-settings are not changed implicitly. This combined image recipe has not yet been
-built or GPU-validated.
+[fork-version notes](mc32/README.md) to enable the estimator. The default remains
+`topk`, with `VLLM_SCORE_CENTERING_MC32=0`; existing loss and sampling settings are
+not changed implicitly. The newly assembled image has not been built or
+GPU-validated.
 
 ## Compact logprob overlay
 
 This optional recipe is for experiment images; the default image catalog is unchanged.
 
 `Dockerfile.compact-logprobs` installs `goncalorafaria/vllm` at
-`0ad34f5b6bd55ec8a3647ab39b2c8bf322d65fa0`. It requires a Prime RL 0.9
-base with vLLM 0.29.0, Torch 2.13, and CUDA 13.0. It reuses the matching
-upstream binary extensions and adds the bundled MC32 kernel and storage modules.
-For MC32 training, use the standard builder above: applying only this Dockerfile
-to an unrelated base does not provide the trainer/config/transport patches.
+`409c9efd1aeb0fdd3f32d06554e33f520534e273` with native compact and MC32 support. It requires a
+PrimeRL 0.9 base with vLLM 0.29.0, Torch 2.13 and CUDA 13.0, and reuses matching
+upstream binary extensions. For MC32 training, use the standard builder above:
+this Dockerfile alone cannot supply missing trainer/config/transport changes.
 
 ```bash
 docker build --build-arg BASE_IMAGE=prime-rl-cu130:local \
   -f src/primebeaker/images/Dockerfile.compact-logprobs \
-  -t prime-rl-compact:0ad34f5-mc32 src/primebeaker/images
+  -t prime-rl-compact:409c9ef-mc32 src/primebeaker/images
 ```
 
 Publish the resulting image to Beaker and pass its immutable URI as the launcher
