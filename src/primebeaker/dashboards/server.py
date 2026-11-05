@@ -10,6 +10,7 @@ import time
 from .config import DashboardConfig
 from .store import SnapshotStore
 from .views import get_view
+from .wandb import curve_matches_run
 
 
 def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 8791):
@@ -35,7 +36,19 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                     body = path.read_bytes()
                 elif route in snapshots:
                     content_type = "application/json"
-                    body = json.dumps(store.read(snapshots[route]), allow_nan=False).encode()
+                    data = store.read(snapshots[route])
+                    if snapshots[route] == 'curves.json':
+                        # Receipts can change while a collector still holds an
+                        # older cache. Check identity again at the API boundary.
+                        for spec in config.runs:
+                            run = config.run(spec)
+                            curve = data.get('runs', {}).get(run['id'], {})
+                            if not curve_matches_run(curve, run.get('wandb_run')):
+                                data.setdefault('runs', {})[run['id']] = {
+                                    'label': run['label'], 'available': False,
+                                    'error': 'No history for the current run yet',
+                                    'wandb_run': run.get('wandb_run')}
+                    body = json.dumps(data, allow_nan=False).encode()
                 elif route == "/api/inference-history":
                     content_type = "application/json"
                     with history_lock:

@@ -1,11 +1,24 @@
 """Sparse, raw W&B histories shared by dashboard views; optional dependency."""
 from __future__ import annotations
 
+from urllib.parse import urlsplit
 import math
 import os
 import subprocess
 
 from .store import utc_now
+
+
+def curve_matches_run(curve: dict, identity: str | None) -> bool:
+    """Never reuse a slot's cached history after its W&B run is replaced."""
+    if not identity:
+        return False
+    recorded = curve.get('wandb_run')
+    if not recorded:
+        parts = urlsplit(curve.get('url', '')).path.strip('/').split('/')
+        if len(parts) >= 4 and parts[-2] == 'runs':
+            recorded = '/'.join((parts[-4], parts[-3], parts[-1]))
+    return recorded == identity
 
 
 class WandbHistory:
