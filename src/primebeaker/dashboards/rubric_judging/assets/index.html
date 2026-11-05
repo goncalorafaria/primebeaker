@@ -50,11 +50,12 @@
 </div>
 <p class="muted">One line per server. Request latency averages requests completed between collector samples; it is not the age of active requests. KV cache is averaged across each server’s engines. Missing or unreachable servers leave gaps, not zeros.</p>
 <h2>W&B training curves</h2>
-<div class="legend">
+<div class="legend server-legend" id="training-legend">
 <span>Instruct</span>
 <span>Base</span>
 </div>
 <p id="curves-status" class="muted">Loading W&B history…</p>
+<p id="curve-caveat" class="muted"></p>
 <div class="charts">
 <section class="chart">
 <h3>Time / step · minutes</h3>

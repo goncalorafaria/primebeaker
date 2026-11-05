@@ -101,3 +101,9 @@ its metric endpoint is healthy. API errors retain last-good status with its
 observation timestamp, and stale snapshot ages remain visible.
 
 The rubric view plots active requests, interval mean request latency, and engine-mean KV cache per server over the last hour. `/api/inference-history` returns a compact history projection (up to 300 snapshots, bounded to the final 8 MiB of each of two UTC daily logs). The HTTP server caches it for 10 seconds. Missing/unreachable/stale samples leave gaps. The shared plot component accepts `xMode: "time"` and `zeroFloor: true`; training plots keep their step axes. Detailed inference rows appear at the bottom of the view.
+
+### Historical training baselines
+
+Add `baselines` entries containing `id`, `label`, `wandb_run` (`entity/project/run`), and `curves_file` (a saved W&B curve export). Optional `color` applies consistently across plots. Exports use the same `{curves: {metric_name: {points: [{step, value}]}}}` format as live runs and must contain their matching `wandb_run` or original W&B `url`. Baselines appear only in training plots, never as live jobs or inference servers. Their status is labeled saved baseline.
+
+`curve_max_step` restricts displayed training points without altering history; `curve_caveat` adds a visible comparison note. Run-level `color` controls live training series too. Saved baseline files are read by the HTTP server, so they do not require extra W&B polling.

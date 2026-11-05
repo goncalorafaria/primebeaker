@@ -7,7 +7,7 @@ import json
 import threading
 import time
 
-from .config import DashboardConfig
+from .config import DashboardConfig, read_json
 from .store import SnapshotStore
 from .views import get_view
 from .wandb import curve_matches_run
@@ -48,6 +48,16 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                                     'label': run['label'], 'available': False,
                                     'error': 'No history for the current run yet',
                                     'wandb_run': run.get('wandb_run')}
+                        for baseline in config.data.get('baselines', []):
+                            try:
+                                curve = read_json(config.resolve(baseline['curves_file']))
+                                if not curve_matches_run(curve, baseline.get('wandb_run')):
+                                    raise ValueError('Baseline history does not match its configured W&B run')
+                                curve.update(label=baseline['label'], historical=True)
+                            except (OSError, ValueError, KeyError):
+                                curve = {'available': False, 'historical': True,
+                                         'error': 'Saved baseline history unavailable or run identity mismatch'}
+                            data.setdefault('runs', {})[baseline['id']] = curve
                     body = json.dumps(data, allow_nan=False).encode()
                 elif route == "/api/inference-history":
                     content_type = "application/json"
@@ -61,7 +71,10 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                     # Only public display metadata; the manifest may contain
                     # private credential environment-variable names and paths.
                     body = json.dumps({"title": config.title, "kind": config.kind, "refresh_seconds": config.interval, "judge_label": config.judge.get("label", "Judge"),
-                                       "runs": [{"id": r["id"], "label": r.get("label", r["id"])} for r in config.runs]}).encode()
+                                       "runs": [{"id": r["id"], "label": r.get("label", r["id"]), "color": r.get('color')} for r in config.runs],
+                                       "baselines": [{k: b.get(k) for k in ('id', 'label', 'color')} for b in config.data.get('baselines', [])],
+                                       "curve_max_step": config.data.get('curve_max_step'),
+                                       "curve_caveat": config.data.get('curve_caveat', '')}).encode()
                 else:
                     self.send_error(404)
                     return
