@@ -99,3 +99,5 @@ judge in the same Beaker experiment are not confused. Submitted replicas appear
 before registry discovery; a running container is labeled initializing until
 its metric endpoint is healthy. API errors retain last-good status with its
 observation timestamp, and stale snapshot ages remain visible.
+
+The rubric view plots active requests, interval mean request latency, and engine-mean KV cache per server over the last hour. `/api/inference-history` returns a compact history projection (up to 300 snapshots, bounded to the final 8 MiB of each of two UTC daily logs). The HTTP server caches it for 10 seconds. Missing/unreachable/stale samples leave gaps. The shared plot component accepts `xMode: "time"` and `zeroFloor: true`; training plots keep their step axes. Detailed inference rows appear at the bottom of the view.

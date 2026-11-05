@@ -146,3 +146,5 @@ header {
   .charts {
   grid-template-columns:1fr}
 }
+
+.server-legend {flex-wrap:wrap;gap:8px 18px;margin:10px 0 16px}

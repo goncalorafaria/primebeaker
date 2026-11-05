@@ -40,41 +40,15 @@
 <div class="detail" id="throughput">Waiting for snapshot</div>
 </div>
 </div>
-<h2>Live inference requests</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Endpoint / state</th>
-<th>Active</th>
-<th>Queued</th>
-<th>Output tokens/s</th>
-<th>KV cache avg.</th>
-<th>Mean request</th>
-<th>Mean queue</th>
-</tr>
-</thead>
-<tbody id="inference">
-</tbody>
-</table>
+<h2>Inference servers · last hour</h2>
+<p class="muted" id="servers-status">Loading server history…</p>
+<div class="legend server-legend" id="servers-legend"></div>
+<div class="charts">
+<section class="chart"><h3>Active requests</h3><div id="plot-active"></div></section>
+<section class="chart"><h3>Mean request latency · seconds</h3><div id="plot-latency"></div></section>
+<section class="chart"><h3>KV cache · %</h3><div id="plot-cache"></div></section>
 </div>
-<h2>All submitted jobs</h2>
-<p class="muted">Queued and initializing replicas appear here before they register with the inference pool. Job state refreshes every 60 seconds.</p>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Task</th>
-<th>State</th>
-<th>Host</th>
-<th>Beaker</th>
-</tr>
-</thead>
-<tbody id="jobs">
-</tbody>
-</table>
-</div>
+<p class="muted">One line per server. Request latency averages requests completed between collector samples; it is not the age of active requests. KV cache is averaged across each server’s engines. Missing or unreachable servers leave gaps, not zeros.</p>
 <h2>W&B training curves</h2>
 <div class="legend">
 <span>Instruct</span>
@@ -121,6 +95,41 @@
 </table>
 </div>
 <p id="timing" class="hint">Available after a completed optimizer step.</p>
+<h2>All submitted jobs</h2>
+<p class="muted">Queued and initializing replicas appear here before they register with the inference pool. Job state refreshes every 60 seconds.</p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>State</th>
+<th>Host</th>
+<th>Beaker</th>
+</tr>
+</thead>
+<tbody id="jobs">
+</tbody>
+</table>
+</div>
+<h2>Live inference requests</h2>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Endpoint / state</th>
+<th>Active</th>
+<th>Queued</th>
+<th>Output tokens/s</th>
+<th>KV cache avg.</th>
+<th>Mean request</th>
+<th>Mean queue</th>
+</tr>
+</thead>
+<tbody id="inference">
+</tbody>
+</table>
+</div>
 <p class="muted">KV cache is the mean occupied fraction across the deployment’s inference engines (one engine per judge replica; all engines for a policy deployment). Step time includes waiting for its rollout batch, so the first step includes warmup. Snapshots every 15 seconds; this view polls every 5 seconds. Request latency is the interval mean of completed requests, not the age of active requests. A dash means unavailable. Engine queue excludes requests waiting inside the grouped API. The first optimizer step remains pending until the trainer reports its completion.</p>
 <p>
 <a href="/api/snapshot" target="_blank">Latest snapshot</a> · <a href="/api/snapshot" target="_blank">Full JSON snapshot</a>

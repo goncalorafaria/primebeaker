@@ -75,6 +75,42 @@ async function curves() {
   } catch (error) { el('curves-status').textContent = error.message; }
 }
 
+async function servers() {
+  try {
+    const data = await getJSON('/api/inference-history');
+    const rows = data.snapshots || [], sources = new Map();
+    const labels = Object.fromEntries(config.runs.map(run => [run.id, run.label]));
+    labels.judge = config.judge_label;
+    for (const row of rows) for (const [role, endpoints] of Object.entries(row.inference || {})) {
+      for (const endpoint of endpoints) {
+        if (!endpoint.endpoint) continue;
+        const key = role + '|' + endpoint.endpoint;
+        if (!sources.has(key)) {
+          let host = endpoint.endpoint;
+          try { host = new URL(host).host.replace('.reviz.ai2.in', ''); } catch {}
+          sources.set(key, {name: (labels[role] || role) + ' · ' + host, color: palette[sources.size % palette.length]});
+        }
+      }
+    }
+    for (const [suffix, metric, label] of [
+      ['active', 'active', 'Active requests'],
+      ['latency', 'request_latency_seconds_interval_mean', 'Mean request latency (seconds)'],
+      ['cache', 'kv_cache_percent_mean', 'KV cache (%)'],
+    ]) {
+      const series = [...sources].map(([key, source]) => ({...source, points: rows.map(row => {
+        const [role, url] = key.split('|');
+        const endpoint = (row.inference[role] || []).find(e => e.endpoint === url);
+        // Cached old samples must not appear as fresh observations.
+        const fresh = endpoint?.sampled_at && Math.abs(Date.parse(row.timestamp) - Date.parse(endpoint.sampled_at)) < 45000;
+        return {step: Date.parse(row.timestamp), value: endpoint?.available && fresh ? endpoint[metric] : null};
+      })}));
+      renderPlot(el('plot-' + suffix), series, {label, xMode: 'time', zeroFloor: true});
+    }
+    el('servers-legend').innerHTML = [...sources.values()].map(source => '<span style="color:' + source.color + '">' + escape(source.name) + '</span>').join('');
+    el('servers-status').textContent = rows.length ? sources.size + ' servers · ' + rows.length + ' snapshots · latest ' + new Date(rows.at(-1).timestamp).toLocaleTimeString() : 'Waiting for inference history';
+  } catch (error) { el('servers-status').textContent = 'Server history unavailable: ' + error.message; }
+}
+
 async function start() {
   try {
     config = await getJSON('/api/config');
@@ -83,11 +119,13 @@ async function start() {
     el('primary-label').textContent = config.runs[0].label;
     el('comparison-label').textContent = config.runs[1]?.label || 'Comparison policy';
     document.querySelector('.legend').innerHTML = config.runs.map((run, i) => '<span style="color:' + palette[i % palette.length] + '">' + escape(run.label) + '</span>').join('');
-    el('refresh').onclick = () => { update(); curves(); };
+    el('refresh').onclick = () => { update(); curves(); servers(); };
     await update();
     curves();
+    servers();
     setInterval(update, 5000);
     setInterval(curves, 15000);
+    setInterval(servers, 15000);
     setInterval(freshness, 1000);
   } catch (error) { el('error').textContent = error.message; el('error').style.display = 'block'; }
 }

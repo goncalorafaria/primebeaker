@@ -4,6 +4,8 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 import json
+import threading
+import time
 
 from .config import DashboardConfig
 from .store import SnapshotStore
@@ -14,6 +16,8 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
     assets, _ = get_view(config.kind)
     common = files("primebeaker.dashboards").joinpath("assets")
     store = SnapshotStore(config.state_dir)
+    history_lock = threading.Lock()
+    history_cache = {'at': 0.0, 'body': b''}
     static = {
         "/": (assets.joinpath("index.html"), "text/html"),
         "/assets/dashboard.js": (assets.joinpath("dashboard.js"), "text/javascript"),
@@ -32,6 +36,13 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                 elif route in snapshots:
                     content_type = "application/json"
                     body = json.dumps(store.read(snapshots[route]), allow_nan=False).encode()
+                elif route == "/api/inference-history":
+                    content_type = "application/json"
+                    with history_lock:
+                        if time.monotonic() - history_cache['at'] > 10:
+                            history_cache['body'] = json.dumps(store.inference_history(), allow_nan=False).encode()
+                            history_cache['at'] = time.monotonic()
+                        body = history_cache['body']
                 elif route == "/api/config":
                     content_type = "application/json"
                     # Only public display metadata; the manifest may contain
