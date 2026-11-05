@@ -1,7 +1,7 @@
 """Atomic snapshots and append-only history shared by all dashboard views."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import os
 from pathlib import Path
@@ -33,3 +33,43 @@ class SnapshotStore:
 
     def read(self, name: str) -> dict:
         return json.loads((self.directory / name).read_text())
+
+    def inference_history(self) -> dict:
+        """Bounded last-hour history, including gaps; no private job metadata."""
+        now = datetime.now(timezone.utc)
+        cutoff = now.timestamp() - 3600
+        snapshots = []
+        reached_cutoff = False
+        for day in (now.date(), (now - timedelta(days=1)).date()):
+            path = self.directory / f"history-{day.isoformat()}.jsonl"
+            try:
+                with path.open('rb') as stream:
+                    stream.seek(0, 2)
+                    size = stream.tell()
+                    start = max(0, size - 8 * 1024 * 1024)
+                    stream.seek(start)
+                    if start:
+                        stream.readline()  # Skip an incomplete first record.
+                    lines = stream.read().splitlines()
+            except FileNotFoundError:
+                continue
+            for line in reversed(lines):
+                try:
+                    row = json.loads(line)
+                    stamp = datetime.fromisoformat(row['timestamp']).timestamp()
+                except (ValueError, KeyError, TypeError):
+                    continue  # An append in progress can leave a partial line.
+                if stamp < cutoff:
+                    reached_cutoff = True
+                    break
+                snapshots.append({'timestamp': row['timestamp'], 'inference': {
+                    role: [{k: endpoint.get(k) for k in (
+                        'endpoint', 'sampled_at', 'available', 'active',
+                        'request_latency_seconds_interval_mean', 'kv_cache_percent_mean')}
+                        for endpoint in endpoints]
+                    for role, endpoints in row.get('inference', {}).items()}})
+                if len(snapshots) >= 300:
+                    break
+            if len(snapshots) >= 300 or reached_cutoff:
+                break
+        return {'window_seconds': 3600, 'snapshots': sorted(snapshots, key=lambda row: row['timestamp'])}
