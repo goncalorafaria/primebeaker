@@ -1,0 +1,143 @@
+:root {
+  color-scheme:dark;
+  font-family:Inter,system-ui,sans-serif;
+  background:#101723;
+  color:#e4ebf5}
+body {
+  max-width:1380px;
+  margin:auto;
+  padding:30px}
+h1 {
+  font-size:28px;
+  margin:0 0 7px}
+h2 {
+  font-size:18px;
+  margin-top:30px}
+p,.hint {
+  color:#a6b4c9;
+  line-height:1.6}
+.fresh {
+  color:#78c6ff}
+.stale {
+  color:#ffb56e}
+header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px}
+.cards {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin:25px 0}
+.card {
+  background:#1b2637;
+  padding:20px;
+  border:1px solid #29374e;
+  border-radius:12px}
+.value {
+  font-size:27px;
+  font-weight:650;
+  margin:8px 0}
+.label {
+  font-size:13px;
+  color:#a6b4c9}
+.detail {
+  font-size:13px;
+  color:#9ac9f4}
+.table-wrap {
+  overflow:auto;
+  border:1px solid #29374e;
+  border-radius:10px}
+table {
+  border-collapse:collapse;
+  width:100%;
+  font-size:14px}
+th,td {
+  text-align:left;
+  padding:13px 14px;
+  border-bottom:1px solid #29374e;
+  white-space:nowrap}
+th {
+  color:#a6b4c9;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  background:#182233}
+tr:last-child td {
+  border-bottom:0}
+td.number {
+  text-align:right;
+  font-variant-numeric:tabular-nums}
+.badge {
+  padding:4px 8px;
+  border-radius:5px;
+  background:#27374d;
+  color:#a6d7ff}
+.error {
+  color:#ffb56e;
+  background:#30241f;
+  padding:13px;
+  border-radius:8px;
+  display:none}
+a {
+  color:#83c6ff}
+.muted {
+  color:#91a1b8;
+  font-size:13px}
+button {
+  cursor:pointer;
+  border:1px solid #426080;
+  border-radius:7px;
+  padding:9px 14px;
+  color:#d8e9ff;
+  background:#22344a}
+@media(max-width:850px) {
+  .cards {
+  grid-template-columns:repeat(2,1fr)}
+body {
+  padding:17px}
+header {
+  align-items:flex-start}
+}
+@media(max-width:500px) {
+  .cards {
+  grid-template-columns:1fr}
+}
+
+.charts {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px}
+.chart {
+  background:#182233;
+  border:1px solid #29374e;
+  border-radius:12px;
+  padding:16px;
+  min-width:0}
+.chart h3 {
+  font-size:16px;
+  margin:0 0 10px}
+.chart svg {
+  width:100%;
+  height:auto}
+.chart-caption {
+  font-size:12px;
+  color:#a6b4c9;
+  overflow-wrap:anywhere}
+.legend {
+  display:flex;
+  gap:16px;
+  font-size:13px}
+.legend span:before {
+  content:"";
+  display:inline-block;
+  width:12px;
+  height:3px;
+  margin-right:6px;
+  vertical-align:middle;
+  background:currentColor}
+@media(max-width:950px) {
+  .charts {
+  grid-template-columns:1fr}
+}

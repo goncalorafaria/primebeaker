@@ -451,3 +451,15 @@ for Slurm launch and supervision.
 ## MC32 training image recipe
 
 The [standard score-centering image build](src/primebeaker/images/README.md#standard-score-centering-and-mc32-image-build) includes opt-in MC32 sampling, trainer estimation, and packed-array transport. Use the bundled [config fragment](src/primebeaker/images/mc32/rl-fragment.toml) to select MC32; the default estimator remains top-k. Build and publish a new image explicitly. Existing training jobs and historical image catalog IDs are not updated by this recipe change.
+
+
+## Live dashboards
+
+`primebeaker dashboards` provides reusable read-only collection and serving for live RL dashboards. The first view is rubric judging: policy inference and judge queues/KV cache, submitted Beaker task state, trainer/batch progress, and raw W&B time/step, reward and mean total-token curves. Run identities and cluster paths are configured in a JSON manifest.
+
+```bash
+python -m pip install 'primebeaker[dashboards]'
+primebeaker dashboards serve --config=./dashboard.json --port=8791
+```
+
+See [the example manifest](examples/dashboards/rubric-judging.json), [deployment instructions](examples/dashboards/README.md), and [shared architecture/API](src/primebeaker/dashboards/README.md). Metrics and W&B collection can run in separate CPU workers while the browser serves their shared snapshots.
