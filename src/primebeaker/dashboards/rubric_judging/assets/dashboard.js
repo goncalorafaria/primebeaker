@@ -66,12 +66,14 @@ async function update() {
 async function curves() {
   try {
     const data = await getJSON('/api/curves');
+    const runs = [...config.runs, ...(config.baselines || [])];
     for (const [kind, suffix, scale] of [['time_per_step', 'time', 60], ['reward_mean', 'reward', 1], ['total_tokens_mean', 'tokens', 1]]) {
-      const series = config.runs.map((run, i) => ({name: run.label, color: palette[i % palette.length], points: data.runs[run.id]?.curves?.[kind]?.points || []}));
+      const series = runs.map((run, i) => ({name: run.label, color: run.color || palette[i % palette.length], points: (data.runs[run.id]?.curves?.[kind]?.points || [])
+        .filter(point => config.curve_max_step == null || point.step <= config.curve_max_step)}));
       renderPlot(el('plot-' + suffix), series, {label: kind, scale});
-      el('source-' + suffix).textContent = [...new Set(config.runs.map(r => data.runs[r.id]?.curves?.[kind]?.metric).filter(Boolean))].join(' · ');
+      el('source-' + suffix).textContent = [...new Set(runs.map(r => data.runs[r.id]?.curves?.[kind]?.metric).filter(Boolean))].join(' · ');
     }
-    el('curves-status').textContent = 'W&B checked ' + new Date(data.fetched_at).toLocaleString() + ' · ' + config.runs.map(run => run.label + ': ' + (data.runs[run.id]?.available ? 'history loaded' : data.runs[run.id]?.curves ? 'cached history; refresh unavailable' : 'no history available yet')).join(' · ');
+    el('curves-status').textContent = 'W&B checked ' + new Date(data.fetched_at).toLocaleString() + ' · ' + runs.map(run => run.label + ': ' + (data.runs[run.id]?.available ? (data.runs[run.id].historical ? 'saved baseline' : 'history loaded') : data.runs[run.id]?.curves ? 'cached history; refresh unavailable' : 'no history available yet')).join(' · ') + (config.curve_max_step == null ? '' : ' · shown through step ' + config.curve_max_step);
   } catch (error) { el('curves-status').textContent = error.message; }
 }
 
@@ -118,7 +120,8 @@ async function start() {
     document.title = config.title;
     el('primary-label').textContent = config.runs[0].label;
     el('comparison-label').textContent = config.runs[1]?.label || 'Comparison policy';
-    document.querySelector('.legend').innerHTML = config.runs.map((run, i) => '<span style="color:' + palette[i % palette.length] + '">' + escape(run.label) + '</span>').join('');
+    el('training-legend').innerHTML = [...config.runs, ...(config.baselines || [])].map((run, i) => '<span style="color:' + escape(run.color || palette[i % palette.length]) + '">' + escape(run.label) + '</span>').join('');
+    el('curve-caveat').textContent = config.curve_caveat || '';
     el('refresh').onclick = () => { update(); curves(); servers(); };
     await update();
     curves();

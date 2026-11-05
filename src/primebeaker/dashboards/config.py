@@ -32,6 +32,13 @@ class DashboardConfig:
         ids = [r.get("id") for r in self.runs]
         if not ids or any(not isinstance(i, str) or not i for i in ids) or len(set(ids)) != len(ids):
             raise ValueError("runs requires unique, nonempty string ids")
+        for baseline in self.data.get('baselines', []):
+            identity = baseline.get('id')
+            if not isinstance(identity, str) or not identity or identity in ids:
+                raise ValueError('Baseline ids must be unique and distinct from live runs')
+            if not all(baseline.get(k) for k in ('label', 'wandb_run', 'curves_file')):
+                raise ValueError('Baselines require label, wandb_run and curves_file')
+            ids.append(identity)
         self.judge = self.data.get("judge", {})
         self.state_dir = self.resolve(self.data.get("state_dir", ".dashboard-state"))
         self.interval = self.seconds("refresh_seconds", 15)
