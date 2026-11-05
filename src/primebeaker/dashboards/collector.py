@@ -12,7 +12,7 @@ from .config import DashboardConfig
 from .prometheus import VLLMMetrics, discover
 from .store import SnapshotStore, utc_now
 from .training import TrainingProgress
-from .wandb import WandbHistory
+from .wandb import WandbHistory, curve_matches_run
 
 
 class Collector:
@@ -120,8 +120,11 @@ class Collector:
                     continue
                 value = self.wandb.read(run["wandb_run"], self.config.data.get("curves", self.curve_definitions))
                 value["label"] = run["label"]
+                value["wandb_run"] = run["wandb_run"]
             except Exception as exc:
-                value = dict(self.previous_curves.get(run["id"], {}))
+                previous = self.previous_curves.get(run["id"], {})
+                value = dict(previous) if curve_matches_run(previous, run.get('wandb_run')) else {}
+                value['wandb_run'] = run.get('wandb_run')
                 value.update(label=run["label"], available=False, error=f"W&B fetch unavailable: {type(exc).__name__}", attempted_at=utc_now())
             result["runs"][run["id"]] = value
         self.previous_curves = result["runs"]
