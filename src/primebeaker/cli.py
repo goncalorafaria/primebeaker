@@ -190,6 +190,13 @@ class PrimeBeakerCLI:
         self.vllm_sweep = SweepCLI()
 
     @property
+    def dashboards(self) -> Any:
+        """Serve or collect configured live training dashboards."""
+        from primebeaker.dashboards.cli import DashboardCLI
+
+        return DashboardCLI()
+
+    @property
     def watcher(self) -> Any:
         """Index and browse training/evaluation provenance."""
 

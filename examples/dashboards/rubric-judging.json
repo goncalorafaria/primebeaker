@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "kind": "rubric-judging",
+  "title": "Rubric judging — policy RL",
+  "state_dir": "./state/rubric-judging",
+  "refresh_seconds": 15,
+  "jobs_refresh_seconds": 60,
+  "wandb_refresh_seconds": 60,
+  "request_timeout_seconds": 8,
+  "beaker_command": ["beaker"],
+  "policy_headers_from_env": {"Authorization": "POLICY_INFERENCE_AUTHORIZATION"},
+  "runs": [
+    {
+      "id": "instruct",
+      "label": "Instruct",
+      "receipt": "./instruct/receipt.json",
+      "task_name": "trainer-2train6infer",
+      "rubrics": 16
+    },
+    {
+      "id": "base",
+      "label": "Base",
+      "receipt": "./base/receipt.json",
+      "task_name": "base-2train6infer",
+      "rubrics": 8
+    }
+  ],
+  "judge": {
+    "label": "Shared rubric judge",
+    "receipt": "./instruct/receipt.json",
+    "registry": "head+sqlite:///path/to/registry/control.sqlite3",
+    "model": "/path/to/dedicated-judge-model",
+    "expected_replicas": 3,
+    "experiments": [
+      {"receipt_key": "services_experiment_id", "task_names": ["moe-judge-tp4-ep"]},
+      {"receipt_key": "additional_judge_capacity.experiment_id"}
+    ]
+  }
+}

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RL request watcher</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<header>
+<div>
+<h1 id="title">Live dashboard</h1>
+<div class="hint">Rubric judging · policy training and shared judge pool</div>
+</div>
+<button id="refresh">Refresh now</button>
+</header>
+<p id="freshness">Loading the latest snapshot…</p>
+<div class="error" id="error">
+</div>
+<div class="cards">
+<div class="card">
+<div class="label">
+<span id="primary-label">Primary policy</span> completed step</div>
+<div class="value" id="step">—</div>
+<div class="detail" id="batch">Waiting for snapshot</div>
+</div>
+<div class="card">
+<div class="label" id="comparison-label">Comparison policy</div>
+<div class="value" id="base">—</div>
+<div class="detail" id="basebatch">Waiting for snapshot</div>
+</div>
+<div class="card">
+<div class="label">Judge replicas serving / requested</div>
+<div class="value" id="replicas">—</div>
+<div class="detail">Only healthy metric endpoints count as serving</div>
+</div>
+<div class="card">
+<div class="label">Judge active / queued requests</div>
+<div class="value" id="load">—</div>
+<div class="detail" id="throughput">Waiting for snapshot</div>
+</div>
+</div>
+<h2>Live inference requests</h2>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Endpoint / state</th>
+<th>Active</th>
+<th>Queued</th>
+<th>Output tokens/s</th>
+<th>KV cache avg.</th>
+<th>Mean request</th>
+<th>Mean queue</th>
+</tr>
+</thead>
+<tbody id="inference">
+</tbody>
+</table>
+</div>
+<h2>All submitted jobs</h2>
+<p class="muted">Queued and initializing replicas appear here before they register with the inference pool. Job state refreshes every 60 seconds.</p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>State</th>
+<th>Host</th>
+<th>Beaker</th>
+</tr>
+</thead>
+<tbody id="jobs">
+</tbody>
+</table>
+</div>
+<h2>W&B training curves</h2>
+<div class="legend">
+<span>Instruct</span>
+<span>Base</span>
+</div>
+<p id="curves-status" class="muted">Loading W&B history…</p>
+<div class="charts">
+<section class="chart">
+<h3>Time / step · minutes</h3>
+<div id="plot-time">Waiting for W&B history</div>
+<div class="chart-caption" id="source-time">
+</div>
+</section>
+<section class="chart">
+<h3>Mean reward</h3>
+<div id="plot-reward">Waiting for W&B history</div>
+<div class="chart-caption" id="source-reward">
+</div>
+</section>
+<section class="chart">
+<h3>Mean total token count</h3>
+<div id="plot-tokens">Waiting for W&B history</div>
+<div class="chart-caption" id="source-tokens">
+</div>
+</section>
+</div>
+<p class="muted">Source: W&B API, refreshed every minute. X axis uses the step as logged by each producer; trainer timing requires a forward/backward timing row, excluding orchestrator timing. Raw points, no smoothing or interpolation. Hover over a point for its value. A missing series means no recorded data, not zero.</p>
+<h2>Training steps</h2>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Completed step</th>
+<th>Latest time / step</th>
+<th>Batch wait</th>
+<th>Forward + backward</th>
+<th>Weight broadcast</th>
+<th>Train tokens/s</th>
+</tr>
+</thead>
+<tbody id="training">
+</tbody>
+</table>
+</div>
+<p id="timing" class="hint">Available after a completed optimizer step.</p>
+<p class="muted">KV cache is the mean occupied fraction across the deployment’s inference engines (one engine per judge replica; all engines for a policy deployment). Step time includes waiting for its rollout batch, so the first step includes warmup. Snapshots every 15 seconds; this view polls every 5 seconds. Request latency is the interval mean of completed requests, not the age of active requests. A dash means unavailable. Engine queue excludes requests waiting inside the grouped API. The first optimizer step remains pending until the trainer reports its completion.</p>
+<p>
+<a href="/api/snapshot" target="_blank">Latest snapshot</a> · <a href="/api/snapshot" target="_blank">Full JSON snapshot</a>
+</p>
+
+<script type="module" src="/assets/dashboard.js">
+</script>
+</body>
+</html>
