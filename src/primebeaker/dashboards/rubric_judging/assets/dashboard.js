@@ -39,7 +39,10 @@ function render(s) {
   }
   el('inference').innerHTML = rows;
   let jobs = '';
-  for (const job of s.jobs) {
+  const stateOrder = {running: 0, starting: 1, queued: 2};
+  const orderedJobs = [...s.jobs].sort((a, b) => (stateOrder[a.state] ?? 3) - (stateOrder[b.state] ?? 3)
+    || Date.parse(b.status?.created || 0) - Date.parse(a.status?.created || 0));
+  for (const job of orderedJobs) {
     let state = job.state;
     if (job.role === 'judge' && state === 'running') state = judges.some(e => job.metrics_endpoint && e.endpoint === job.metrics_endpoint) ? 'Serving' : 'Running / initializing';
     jobs += '<tr><td>' + escape(job.label) + '</td><td><span class="badge">' + escape(state) + '</span></td><td>' + escape(job.host) + '</td><td><a target="_blank" rel="noopener" href="' + escape(job.url) + '">Open experiment</a></td></tr>';
@@ -67,9 +70,12 @@ async function curves() {
   try {
     const data = await getJSON('/api/curves');
     const runs = [...config.runs, ...(config.baselines || [])];
+    const baselineIds = new Set((config.baselines || []).map(run => run.id));
     for (const [kind, suffix, scale] of [['time_per_step', 'time', 60], ['reward_mean', 'reward', 1], ['total_tokens_mean', 'tokens', 1]]) {
-      const series = runs.map((run, i) => ({name: run.label, color: run.color || palette[i % palette.length], points: (data.runs[run.id]?.curves?.[kind]?.points || [])
-        .filter(point => config.curve_max_step == null || point.step <= config.curve_max_step)}));
+      // SVG paints later series on top. Keep live runs above historical overlays.
+      const series = runs.map((run, i) => ({name: run.label, historical: baselineIds.has(run.id), color: run.color || palette[i % palette.length], points: (data.runs[run.id]?.curves?.[kind]?.points || [])
+        .filter(point => config.curve_max_step == null || point.step <= config.curve_max_step)}))
+        .sort((a, b) => Number(b.historical) - Number(a.historical));
       renderPlot(el('plot-' + suffix), series, {label: kind, scale});
       el('source-' + suffix).textContent = [...new Set(runs.map(r => data.runs[r.id]?.curves?.[kind]?.metric).filter(Boolean))].join(' · ');
     }
