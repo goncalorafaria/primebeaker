@@ -1,0 +1,92 @@
+{
+  "version": "v2",
+  "description": "Step430 Jupiter-only BF16 TP4 seeds1-5; Saturn baseline settings; eval",
+  "budget": "ai2/oe-omai",
+  "tasks": [
+    {
+      "name": "eval-430-jupiter-five-seeds",
+      "image": {
+        "docker": "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/start.sh"
+      ],
+      "envVars": [
+        {
+          "name": "SERPER_API_KEY",
+          "secret": "SERPER_API_KEY"
+        },
+        {
+          "name": "JINA_API_KEY",
+          "secret": "JINA_API_KEY"
+        },
+        {
+          "name": "HF_TOKEN",
+          "secret": "HF_TOKEN"
+        },
+        {
+          "name": "CHECKPOINT_PATH",
+          "value": "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume400-to450-20261103/search-agent-mc32-resume400-to450-20261103/checkpoints/step_430"
+        },
+        {
+          "name": "RUN_CONFIG_DIR",
+          "value": "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume400-to450-20261103/configs"
+        },
+        {
+          "name": "MODEL_PORT",
+          "value": "42103"
+        },
+        {
+          "name": "SEARCH_PORT",
+          "value": "42101"
+        },
+        {
+          "name": "GATEWAY_PORT",
+          "value": "42102"
+        },
+        {
+          "name": "EVAL_OUTPUT_DIR",
+          "value": "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/step430"
+        },
+        {
+          "name": "MODEL_PATH",
+          "value": "/weka/gfaria/search-agent-repr/evals/frontier-science-step430-256k-bf16-web-v2-saturn-three-seeds/hf-checkpoint"
+        },
+        {
+          "name": "USE_CUDA_COMPAT",
+          "value": "auto"
+        },
+        {
+          "name": "EVAL_SEED",
+          "value": "1"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "hostNetworking": true,
+      "context": {
+        "priority": "urgent",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# Pull immutable Beaker 01M27G8Y678BBF5MWXX6R12BSB as search-services-base first.
+ARG BASE_IMAGE=search-services-base:local
+FROM ${BASE_IMAGE}
+COPY bundle /opt/search-agent-experiments

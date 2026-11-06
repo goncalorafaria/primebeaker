@@ -1,0 +1,815 @@
+import prime_rl._compat  # noqa: F401 — patch ring_flash_attn compat before import
+
+from contextlib import nullcontext
+import time
+import asyncio
+from datetime import timedelta
+
+# Import environment before any other imports
+# ruff: noqa: I001
+
+from prime_rl.transports.weights import prune_broadcasts_beyond, setup_weight_sender
+from prime_rl.utils.act_offloading import maybe_activation_offloading
+import torch
+import torch.distributed as dist
+from torch.profiler import profile, ProfilerActivity, record_function
+from prime_rl.trainer.ckpt import Progress, setup_ckpt_manager
+from prime_rl.trainer.optim import setup_optimizer
+from prime_rl.trainer.scheduler import setup_scheduler
+from prime_rl.configs.trainer import TrainerConfig, uses_score_centering
+from prime_rl.trainer.rl.score_centering import masked_score_correction
+from prime_rl.trainer.rl.data import DataLoader, FakeDataLoader
+from prime_rl.utils.cp import (
+    gather_for_cp,
+    gather_for_cp_wo_grad,
+    setup_context_parallel,
+    setup_cp_params,
+    shard_for_cp,
+)
+from prime_rl.utils.logger import format_time, setup_logger
+from prime_rl.trainer.rl.loss import (
+    compute_entropy,
+    compute_loss,
+    compute_importance_ratio_and_mismatch_kl,
+    selective_log_softmax,
+    selective_log_softmax_with_sampling_mask,
+    setup_rl_loss_fn,
+    shift_tensor_left,
+    shift_tensor_right,
+)
+from prime_rl.trainer.rl.annotations import AnnotationWriter
+from prime_rl.trainer.model import (
+    forward,
+    get_full_offload_dtype_policy,
+    setup_model,
+    is_tt_moe_model,
+    get_load_balance_stats,
+)
+from prime_rl.trainer.parallel_dims import get_parallel_dims, resolve_ep
+from prime_rl.trainer.perf import get_perf_counter
+from prime_rl.trainer.utils import (
+    GarbageCollection,
+    MemoryProfiler,
+    Tensors,
+    begin_backward,
+    clip_grad_norm_,
+    filter_rl_trainer_tensor_stats_for_wandb,
+    finish_backward,
+    get_ckpt_disk_metrics,
+    prepare_gradient_offload,
+    scale_gradients_,
+    setup_full_cpu_optimizer_offload,
+    setup_torch_distributed,
+)
+from prime_rl.trainer.world import get_world
+from prime_rl.trainer.lora import get_lora_state
+from prime_rl.trainer.models.layers.lora import set_lora_num_tokens
+from prime_rl.utils.heartbeat import Heartbeat
+from prime_rl.utils.metrics_server import HealthServer, MetricsServer
+from prime_rl import monitors
+from prime_rl.utils.config import cli
+from prime_rl.utils.process import set_proc_title
+from prime_rl.utils.utils import clean_exit, resolve_latest_ckpt_step
+
+
+@clean_exit
+def train(config: TrainerConfig):
+    # Setup world and logger
+    world = get_world()
+    logger = setup_logger(
+        config.log.level,
+        json_logging=config.log.json_logging,
+    )
+    logger.info(f"Starting RL trainer in {world} (output_dir={config.output_dir})")
+
+    # Setup the monitors
+    asyncio.run(
+        monitors.setup(
+            producer="trainer",
+            wandb=config.monitors.wandb,
+            file=config.monitors.file,
+            output_dir=config.output_dir,
+            run_config=config,
+        )
+    )
+
+    # Setup heartbeat (only on rank 0)
+    heart = None
+    if config.heartbeat is not None and world.is_master:
+        logger.info("Initializing heartbeat")
+        heart = Heartbeat(config.heartbeat.url)
+
+    # Setup metrics server (full on master, health-only on other nodes' local rank 0)
+    metrics_server = None
+    health_server = None
+    if config.metrics_server is not None and world.local_rank == 0:
+        if world.is_master:
+            logger.info(f"Initializing metrics server on port {config.metrics_server.port}")
+            metrics_server = MetricsServer(config.metrics_server)
+            metrics_server.start()
+        else:
+            logger.info(f"Initializing health server on port {config.metrics_server.port}")
+            health_server = HealthServer(config.metrics_server.port, config.metrics_server.host)
+            health_server.start()
+
+    # Set precision
+    setup_torch_distributed(
+        timeout=timedelta(seconds=config.dist_timeout_seconds),
+        enable_gloo=config.model.fsdp_cpu_offload or config.model.full_offload is not None,
+    )
+    if config.model.full_offload is not None:
+        setup_full_cpu_optimizer_offload(config.model.full_offload)
+    # Configurable to support ROCm/AMD GPUs where reduced precision
+    # matmul corrupts softmax over large vocabularies. Override via config
+    # (e.g. matmul_precision = "highest") on ROCm.
+    torch.set_float32_matmul_precision(config.matmul_precision)
+
+    # Resolve ep="auto" to a concrete integer before creating parallel dims
+    resolve_ep(config.model)
+
+    # Initialize parallel dimensions
+    parallel_dims = get_parallel_dims(config.model)
+
+    # Check for checkpoint to resume from
+    checkpoint_step = None
+    logger.info(f"Initializing checkpoint manager ({config.ckpt})")
+    ckpt_manager = setup_ckpt_manager(config.output_dir, config.ckpt, resume=config.resume)
+
+    if config.resume is not None:
+        if config.resume.dir is not None:
+            checkpoint_step = config.resume.dir_step
+        else:
+            checkpoint_step = config.resume.step
+            if checkpoint_step is None:
+                checkpoint_step = resolve_latest_ckpt_step(ckpt_manager.ckpt_dir)
+
+    # Initialize the model and tokenizer
+    logger.info(f"Initializing model ({config.model})")
+    t0 = time.perf_counter()
+    loading_from_ckpt_later = checkpoint_step is not None
+    model = setup_model(config.model, parallel_dims, loading_from_ckpt_later)
+    logger.debug(f"Initialized model in {format_time(time.perf_counter() - t0)}")
+
+    if config.model.vlm is not None and not getattr(model, "supports_packed_multimodal_training", False):
+        raise ValueError("Packed multimodal training requires model support")
+
+    # Set up the loss function for the RL loss type (ce / ref_kl are fixed)
+    logger.info(f"Initializing loss function ({config.loss})")
+    rl_loss_fn = setup_rl_loss_fn(config.loss)
+
+    # Set up the optimizer
+    logger.info(f"Initializing optimizer ({config.optim})")
+    t0 = time.perf_counter()
+    optimizer, gradient_manager = setup_optimizer(
+        config.optim,
+        list(model.named_parameters()),
+        parallel_dims,
+        cpu_offload=config.model.optim_cpu_offload,
+        full_offload_config=config.model.full_offload,
+        model=model,
+        full_offload_dtype_policy=(
+            get_full_offload_dtype_policy(model, config.model) if config.model.full_offload is not None else None
+        ),
+    )
+    logger.debug(f"Initialized optimizer in {format_time(time.perf_counter() - t0)}")
+
+    logger.info(f"Initializing scheduler ({config.scheduler})")
+    scheduler = setup_scheduler(optimizer, config.scheduler, config.max_steps, config.optim.lr)
+
+    # Set up weight broadcast (skip when using fake data since there's no inference server)
+    if config.data.fake:
+        weight_sender = None
+        logger.info("Skipping weight broadcast setup (fake data mode)")
+    else:
+        logger.info(f"Initializing weight broadcast ({config.weight_broadcast})")
+        t0 = time.perf_counter()
+        weight_sender = setup_weight_sender(
+            config.output_dir,
+            config.weight_broadcast,
+            parallel_dims,
+            config.model.lora,
+        )
+        logger.debug(f"Initialized weight broadcast in {format_time(time.perf_counter() - t0)}")
+
+    if parallel_dims.cp_enabled:
+        setup_context_parallel(model, config.model, parallel_dims)
+
+    # Fresh adapter init after FSDP materialization (the pretrained checkpoint
+    # carries no adapter weights); a checkpoint resume below overwrites it.
+    if config.model.lora is not None:
+        get_lora_state().reset_adapter_parameters()
+
+    # Optionally, resume training from a checkpoint
+    progress = Progress()
+    if checkpoint_step is not None:
+        resume_dir = config.resume.dir if config.resume else None
+        ckpt_manager.load(
+            checkpoint_step,
+            model,
+            [optimizer],
+            scheduler,
+            progress,
+            path=resume_dir / "trainer" if resume_dir is not None else None,
+        )
+        # This resume explicitly changes LR; checkpoint state otherwise restores 5e-7.
+        assert config.optim.lr == 1e-6
+        assert config.scheduler.type == "constant"
+        for group in optimizer.param_groups:
+            group["lr"] = config.optim.lr
+            group["initial_lr"] = config.optim.lr
+        scheduler.base_lrs = [config.optim.lr] * len(optimizer.param_groups)
+        scheduler._last_lr = [config.optim.lr] * len(optimizer.param_groups)
+        parameter_dtypes = {str(p.dtype) for p in model.parameters() if p.requires_grad}
+        assert parameter_dtypes == {"torch.bfloat16"}, parameter_dtypes
+        logger.info(f"Resume overrides: lr={config.optim.lr}, parameter_dtypes={parameter_dtypes}, reduce_dtype={config.model.reduce_dtype}")
+        # The checkpoint finished step ``checkpoint_step``; resume training at the next step.
+        progress.step += 1
+        logger.info(
+            f"Resuming from step {checkpoint_step} "
+            f"(total_tokens={progress.total_tokens}, total_samples={progress.total_samples})"
+        )
+    else:
+        logger.info("Starting from scratch")
+
+    # Set up the data loader (Optionally, use a fake data loader for debugging)
+    logger.info(f"Initializing data loader ({config.data})")
+    t0 = time.perf_counter()
+    if config.data.fake:
+        dataloader = FakeDataLoader(config.data.fake, config.model.seq_len, parallel_dims.get_mesh("dp").size())
+    else:
+        dataloader = DataLoader(
+            config.output_dir,
+            progress.step,
+            parallel_dims.get_mesh("dp").size(),
+            config.rollout_transport,
+        )
+    logger.debug(f"Initialized data loader in {format_time(time.perf_counter() - t0)}")
+
+    annotation_writer = AnnotationWriter(
+        parallel_dims, world, config.monitors.file.float_decimals if config.monitors.file else None
+    )
+
+    gc_handler = GarbageCollection(config.gc.interval) if config.gc else None
+
+    logger.info(f"Starting training loop (max_steps={config.max_steps or 'infinite'})")
+    maybe_record_function = nullcontext
+    if config.trace_path:
+        logger.info(f"Tracing to {config.trace_path}")
+        prof = profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True).__enter__()
+        maybe_record_function = record_function
+    start_step = progress.step
+    max_peak_memory = 0.0
+    while True:
+        # Reset peak memory stats
+        torch.cuda.reset_peak_memory_stats()
+        if gc_handler is not None:
+            gc_handler.run(progress.step)
+        is_last_step = config.max_steps is not None and progress.step >= config.max_steps
+
+        logger.debug(f"Starting training step {progress.step}")
+        step_start_time = time.perf_counter()
+
+        # Broadcast the incoming policy (v{progress.step-1}) before waiting for its
+        # rollouts so the trainer and inference pool join the same update lifecycle,
+        # and so a broken broadcast path fails at startup instead of after the first
+        # optimizer step.
+        if progress.step == start_step and weight_sender is not None:
+            startup_version = progress.step - 1
+            if world.is_master:
+                prune_broadcasts_beyond(config.output_dir, startup_version)
+            logger.info(f"Broadcasting startup policy weights (v{startup_version}) to inference engines")
+            t0 = time.perf_counter()
+            weight_sender.broadcast(model, startup_version)
+            logger.debug(
+                f"Broadcast startup policy weights (v{startup_version}) in {format_time(time.perf_counter() - t0)}"
+            )
+
+        # Wait for the batch to be available
+        logger.debug("Waiting for training batch to arrive")
+        wait_for_batch_start_time = time.perf_counter()
+        dataloader.wait_for_batch()
+        wait_for_batch_time = time.perf_counter() - wait_for_batch_start_time
+        logger.debug(f"Waited for batch for {format_time(wait_for_batch_time)}")
+
+        # Load the training batch
+        logger.debug("Loading batch")
+        load_data_start_time = time.perf_counter()
+        micro_batches = dataloader.get_batch()
+        load_data_time = time.perf_counter() - load_data_start_time
+        logger.debug(f"Loaded batch in {format_time(load_data_time)}")
+
+        group_mean = config.loss.aggregation == "group_token_mean"
+        if group_mean and any(mb.get("rl_group_denominators") is None for mb in micro_batches):
+            raise ValueError("group_token_mean requires dispatch-group metadata from the orchestrator")
+
+        batch_size = len(micro_batches)
+        memory_profiler = None
+        if config.memory_profiler_path is not None:
+            memory_profiler = MemoryProfiler(progress.step, config.memory_profiler_path)
+
+        forward_backward_start_time = time.perf_counter()
+        seq_len = micro_batches[0]["input_ids"].shape[1]
+
+        # Normalize each loss component by its own global (dp_cp) token count, so every rank
+        # divides by the same denominator. With a per-rank denominator, ranks with fewer loss
+        # tokens implicitly upweight their per-token gradient contribution after FSDP averaging.
+        # FSDP's per-rank divide is undone after the microbatch loop via
+        # fsdp_gradient_divide_factor. One batched collective keeps every rank issuing the same
+        # op regardless of which components its samples carry.
+        local_rl_scale = 0
+        local_ce_scale = 0
+        local_ref_kl_scale = 0
+        for micro_batch in micro_batches:
+            mask = micro_batch["loss_mask"]
+            rl_w = micro_batch["rl_weights"]
+            local_rl_scale += int((mask & (rl_w != 0)).sum()) if rl_w is not None else int(mask.sum())
+            if micro_batch["ce_weights"] is not None:
+                local_ce_scale += int((micro_batch["ce_weights"] != 0).sum())
+            if micro_batch["ref_kl_weights"] is not None:
+                local_ref_kl_scale += int((micro_batch["ref_kl_weights"] != 0).sum())
+        global_scales = torch.tensor(
+            [local_rl_scale, local_ce_scale, local_ref_kl_scale], dtype=torch.int64, device="cuda"
+        )
+        dp_cp_group = parallel_dims.get_mesh("dp_cp").get_group()
+        dist.all_reduce(global_scales, op=dist.ReduceOp.SUM, group=dp_cp_group)
+        rl_scale, ce_scale, ref_kl_scale = (max(scale, 1) for scale in global_scales.tolist())
+        prepare_gradient_offload(
+            gradient_manager,
+            parallel_dims.fsdp_gradient_divide_factor,
+            overlap_optimizer=True,
+        )
+
+        logger.debug(f"Starting forward and backward pass ({batch_size=})")
+        tensors = Tensors()  # Used to accumulate tensor statistics across micro-batches and ranks for logging
+        cp_enabled = parallel_dims.cp_enabled
+        cp_rank = parallel_dims.world_mesh["cp"].get_local_rank() if cp_enabled else 0
+        cp_group = parallel_dims.world_mesh["cp"].get_group() if cp_enabled else None
+        cp_size = parallel_dims.cp
+
+        for micro_step, micro_batch in enumerate(micro_batches):
+            input_ids = micro_batch["input_ids"].to("cuda")
+            position_ids = micro_batch["position_ids"].to("cuda")
+            advantages = micro_batch["advantages"].to("cuda")
+            loss_mask = micro_batch["loss_mask"].to("cuda")
+            inference_logprobs = micro_batch["inference_logprobs"].to("cuda")
+            ref_logprobs = micro_batch["ref_logprobs"].to("cuda") if micro_batch["ref_logprobs"] is not None else None
+            rl_weights = micro_batch["rl_weights"].to("cuda") if micro_batch["rl_weights"] is not None else None
+            ce_weights = micro_batch["ce_weights"].to("cuda") if micro_batch["ce_weights"] is not None else None
+            ref_kl_weights = (
+                micro_batch["ref_kl_weights"].to("cuda") if micro_batch["ref_kl_weights"] is not None else None
+            )
+            routed_experts = (
+                micro_batch["routed_experts"].to("cuda") if micro_batch["routed_experts"] is not None else None
+            )
+
+            if routed_experts is None and config.enable_router_replay:
+                raise ValueError(
+                    "You must set `enable_return_routed_experts=True` in the inference config or pass `--enable-return-routed-experts` to vLLM server to use router replay."
+                )
+
+            if routed_experts is not None and not config.enable_router_replay:
+                # we could've gotten routed experts from the inference server, but we didn't enable router replay
+                routed_experts = None
+
+            sampling_mask = (
+                micro_batch["sampling_mask"].to("cuda") if micro_batch["sampling_mask"] is not None else None
+            )
+
+            # Multimodal kwargs are an opaque per-model dict (e.g.
+            # {"pixel_values": ..., "image_grid_thw": ...} for Qwen3-VL,
+            # just {"pixel_values": ...} for Gemma3-VL) — we move every
+            # tensor to CUDA and let the model's forward sort them.
+            mm_kwargs_raw = micro_batch.get("mm_kwargs")
+            mm_kwargs = {k: v.to("cuda") for k, v in mm_kwargs_raw.items()} if mm_kwargs_raw else None
+            if mm_kwargs is not None and config.model.vlm is None:
+                raise ValueError(
+                    "Received multimodal samples but [model.vlm] is not set. "
+                    "Set [model.vlm] to train on multimodal samples."
+                )
+            mm_token_type_ids = (
+                micro_batch["mm_token_type_ids"].to("cuda")
+                if micro_batch.get("mm_token_type_ids") is not None
+                else None
+            )
+
+            seq_lens = micro_batch["seq_lens"].to("cuda")
+
+            head_ids = head_logprobs = None
+            active_rl = loss_mask if rl_weights is None else loss_mask & (rl_weights != 0)
+            if uses_score_centering(config.loss) and bool(active_rl.any()):
+                if micro_batch.get("sampler_head_ids") is None:
+                    raise ValueError("score_centering requires recorded sampler probabilities")
+                expected_mode = config.loss.score_centering_estimator.encode()
+                if micro_batch.get("sampler_head_mode", b"topk") != expected_mode:
+                    raise ValueError("Trainer estimator does not match recorded sampler mode")
+                head_ids = shift_tensor_left(micro_batch["sampler_head_ids"].to("cuda"), pad_value=-1)
+                head_logprobs = shift_tensor_left(micro_batch["sampler_head_logprobs"].to("cuda"))
+                active_rl = shift_tensor_left(active_rl)
+
+            labels = shift_tensor_left(input_ids)
+            if sampling_mask is not None:
+                # Sampling masks ride at the sampled token's own position (like inference
+                # logprobs); shift to align with the label each position predicts.
+                sampling_mask = shift_tensor_left(sampling_mask, pad_value=-1)
+
+            seq_lens_are_pre_shard = False
+
+            if cp_enabled:
+                # MRoPE batches must merge image embeddings before sharding.
+                defer_vlm_cp_to_model = mm_kwargs is not None and "image_grid_thw" in mm_kwargs
+                if not defer_vlm_cp_to_model:
+                    input_ids, position_ids = setup_cp_params(
+                        input_ids,
+                        position_ids,
+                        cp_rank,
+                        cp_size,
+                        cp_group,
+                        seq_lens=seq_lens,
+                        cp_style=config.model.cp_style,
+                    )
+                seq_lens_are_pre_shard = True
+                labels = shard_for_cp(labels, cp_rank=cp_rank, cp_world_size=cp_size)
+                if head_ids is not None:
+                    head_ids = shard_for_cp(head_ids, cp_rank=cp_rank, cp_world_size=cp_size)
+                    head_logprobs = shard_for_cp(head_logprobs, cp_rank=cp_rank, cp_world_size=cp_size)
+                    active_rl = shard_for_cp(active_rl, cp_rank=cp_rank, cp_world_size=cp_size)
+                if routed_experts is not None and not defer_vlm_cp_to_model:
+                    routed_experts = shard_for_cp(routed_experts, cp_rank=cp_rank, cp_world_size=cp_size)
+                if sampling_mask is not None:
+                    # The LM head consumes masks after any deferred VLM sharding, so
+                    # they must follow the label shard rather than the input shard.
+                    sampling_mask = shard_for_cp(sampling_mask, cp_rank=cp_rank, cp_world_size=cp_size)
+
+            if config.model.lora:
+                lora_num_tokens = micro_batch["lora_num_tokens"].to("cuda")
+                if cp_enabled:
+                    chunk_size = labels.shape[1]
+                    # Convert to cumsum, adjust for CP chunk, convert back to num_tokens
+                    cu_offsets = lora_num_tokens.cumsum(dim=0, dtype=torch.int32)
+                    adjusted_cu = torch.clip(cu_offsets - chunk_size * cp_rank, min=0, max=chunk_size)
+                    lora_num_tokens = torch.diff(
+                        adjusted_cu, prepend=torch.tensor([0], device=adjusted_cu.device, dtype=adjusted_cu.dtype)
+                    )
+                set_lora_num_tokens(lora_num_tokens)
+
+            temperatures = micro_batch["temperatures"].to("cuda")
+
+            # Shard temperatures for context parallelism if enabled
+            if cp_enabled:
+                temperatures = shard_for_cp(temperatures, cp_rank=cp_rank, cp_world_size=cp_size)
+
+            if sampling_mask is not None:
+                assert sampling_mask.shape[:2] == labels.shape, (
+                    f"sampling_mask shape {tuple(sampling_mask.shape)} is not aligned with "
+                    f"labels shape {tuple(labels.shape)}"
+                )
+
+            # Forward pass with per-token temperatures
+            with maybe_record_function("forward"), maybe_activation_offloading(config.model.ac_offloading):
+                out = forward(
+                    model,
+                    input_ids,
+                    position_ids,
+                    labels=labels,
+                    temperature=temperatures,
+                    mm_kwargs=mm_kwargs,
+                    mm_token_type_ids=mm_token_type_ids,
+                    seq_lens=seq_lens,
+                    seq_lens_are_pre_shard=seq_lens_are_pre_shard,
+                    routed_experts=routed_experts,
+                    sampling_mask=sampling_mask,
+                    score_centering=(
+                        head_ids, head_logprobs, active_rl, config.loss, config.score_centering_token_chunk_size
+                    ) if uses_score_centering(config.loss) and config.score_centering_token_chunk_size else None,
+                )
+
+            if out.get("logprobs") is None:
+                # VanillaOutputLinear was used - need to compute logprobs externally with per-token temps
+                assert out.get("logits") is not None, "Logits must be provided to compute logprobs"
+                logits = out["logits"]
+                # Per-token temperature scaling: temperatures is [batch, seq], logits is [batch, seq, vocab]
+                scaled_logits = logits / temperatures.unsqueeze(-1)
+                if uses_score_centering(config.loss):
+                    scaled_logits = scaled_logits.float()
+                if sampling_mask is not None:
+                    out["logprobs"] = selective_log_softmax_with_sampling_mask(scaled_logits, labels, sampling_mask)
+                else:
+                    out["logprobs"] = selective_log_softmax(scaled_logits, labels)
+                out["entropy"] = compute_entropy(scaled_logits)
+                if head_ids is not None:
+                    out["score_correction"] = masked_score_correction(
+                        scaled_logits,
+                        head_ids,
+                        head_logprobs,
+                        labels,
+                        active_rl,
+                        config.loss,
+                        sampling_mask=sampling_mask,
+                    )
+            # else: FusedOutputLinear was used - logprobs already computed with per-token temperatures
+
+            if cp_enabled:
+                out["logprobs"] = gather_for_cp(out["logprobs"], cp_group)
+                if "score_correction" in out:
+                    out["score_correction"] = gather_for_cp(out["score_correction"], cp_group)
+                out["entropy"] = gather_for_cp_wo_grad(out["entropy"], cp_size, cp_group)
+
+            vocab_size = getattr(model.config, "vocab_size", None) or model.config.text_config.vocab_size
+            # This is not really necessary as the first token should be masked out, but we do it anyway to be sure
+            out["logprobs"] = shift_tensor_right(
+                out["logprobs"], pad_value=torch.log(torch.tensor(1.0 / vocab_size)).item()
+            )
+            out["entropy"] = shift_tensor_right(
+                out["entropy"], pad_value=torch.log(torch.tensor(float(vocab_size))).item()
+            )
+
+            score_correction = shift_tensor_right(out["score_correction"]) if "score_correction" in out else None
+
+            # Compute loss
+            sequence_lengths = micro_batch["sequence_lengths"]
+            loss, loss_tensors = compute_loss(
+                trainer_logprobs=out["logprobs"].squeeze().split(sequence_lengths),
+                inference_logprobs=inference_logprobs.squeeze().split(sequence_lengths),
+                ref_logprobs=ref_logprobs.squeeze().split(sequence_lengths) if ref_logprobs is not None else None,
+                advantages=advantages.squeeze().split(sequence_lengths),
+                loss_mask=loss_mask.squeeze().split(sequence_lengths),
+                rl_weights=rl_weights.squeeze().split(sequence_lengths) if rl_weights is not None else None,
+                ce_weights=ce_weights.squeeze().split(sequence_lengths) if ce_weights is not None else None,
+                ref_kl_weights=ref_kl_weights.squeeze().split(sequence_lengths) if ref_kl_weights is not None else None,
+                rl_loss_fn=rl_loss_fn,
+                rl_scale=rl_scale,
+                ce_scale=ce_scale,
+                ref_kl_scale=ref_kl_scale,
+                rl_group_denominators=micro_batch["rl_group_denominators"] if group_mean else None,
+                cp_size=cp_size,
+                score_corrections=score_correction.squeeze(0).split(sequence_lengths)
+                if score_correction is not None
+                else None,
+            )
+
+            # Backward pass
+            with maybe_record_function("backward"):
+                begin_backward(gradient_manager, final_backward=micro_step == len(micro_batches) - 1)
+                loss.backward()
+                finish_backward(gradient_manager)
+
+            # Add relevant tensors to tensor dict for logging purposes
+            entropy = out["entropy"][loss_mask].detach().to("cpu")
+            tensors["entropy/all"].append(entropy)
+            tensors["loss"].append(loss.detach().to("cpu").unsqueeze(0))
+
+            env_names = micro_batch["env_names"]
+            masked_env_names = [env_name for env_name, keep in zip(env_names, loss_mask.flatten().tolist()) if keep]
+            env_to_indices: dict[str, list[int]] = {}
+            for idx, env_name in enumerate(masked_env_names):
+                env_to_indices.setdefault(env_name, []).append(idx)
+
+            for env_name, indices in env_to_indices.items():
+                tensors[f"entropy/{env_name}"].append(entropy[indices])
+
+            # Mismatch KL is only meaningful where sampling logprobs exist —
+            # keep rl/ref_kl member tokens (policy-sampled), exclude tokens
+            # whose action component is ce (frozen-model tokens).
+            if rl_weights is None and ref_kl_weights is None:
+                mismatch_mask = loss_mask
+                has_mismatch_tokens = True
+            else:
+                sampled_mask = (rl_weights != 0) if rl_weights is not None else loss_mask
+                if ref_kl_weights is not None:
+                    sampled_mask = sampled_mask | (ref_kl_weights != 0)
+                mismatch_mask = loss_mask & sampled_mask
+                has_mismatch_tokens = bool(mismatch_mask.any())
+            if has_mismatch_tokens:
+                with torch.no_grad():
+                    _, _, mismatch_kl = compute_importance_ratio_and_mismatch_kl(out["logprobs"], inference_logprobs)
+                mismatch_kl = mismatch_kl[mismatch_mask].detach().to("cpu")
+                tensors["mismatch_kl/all"].append(mismatch_kl)
+                mismatch_env_names = [
+                    env_name for env_name, keep in zip(env_names, mismatch_mask.flatten().tolist()) if keep
+                ]
+                mismatch_env_to_indices: dict[str, list[int]] = {}
+                for idx, env_name in enumerate(mismatch_env_names):
+                    mismatch_env_to_indices.setdefault(env_name, []).append(idx)
+                for env_name, indices in mismatch_env_to_indices.items():
+                    tensors[f"mismatch_kl/{env_name}"].append(mismatch_kl[indices])
+
+            annotation_writer.export(micro_batch, out)
+
+            if is_tt_moe_model(model):
+                load_balance_stats = get_load_balance_stats(model)
+                for k, v in load_balance_stats.items():
+                    if v is not None:
+                        tensors[k].append(v)
+
+            # Add loss tensors to tensor dict for logging purposes
+            for key, loss_tensor in loss_tensors.items():
+                tensors[key].append(loss_tensor.detach().to("cpu"))
+
+            # Debug log with *local, micro step* stats
+            micro_step_message = f"Micro Step {micro_step + 1}/{len(micro_batches)} | Loss {tensors['loss'][-1].mean().item():.4f} | Entropy {tensors['entropy/all'][-1].mean().item():.4f}"
+            if has_mismatch_tokens:
+                micro_step_message += f" | Mismatch KL {tensors['mismatch_kl/all'][-1].mean().item():.4f}"
+            if "max_vio" in tensors:
+                micro_step_message += f" | Max Vio {tensors['max_vio'][-1].mean().item():.4f}"
+            if "routing_confidence" in tensors:
+                micro_step_message += f" | Routing Conf. {tensors['routing_confidence'][-1].mean().item():.4f}"
+            logger.debug(micro_step_message)
+
+        annotation_writer.flush()
+
+        # compute_loss already divided by the global token count. Undo FSDP's per-rank averaging
+        # across dp_cp so the final gradient is the true per-token mean over the global batch.
+        if gradient_manager is None:
+            scale_gradients_(None, model, parallel_dims.fsdp_gradient_divide_factor)
+
+        # Optionally, clip the gradients
+        grad_norm: torch.Tensor | None = None
+        if config.optim.max_norm is not None:
+            grad_norm = clip_grad_norm_(gradient_manager, model, config.optim.max_norm, parallel_dims.ep_enabled)
+
+        # Update the model parameters
+        optimizer.step()
+        optimizer.zero_grad()
+
+        # Update learning rate scheduler
+        scheduler.step()
+
+        current_lr = optimizer.param_groups[0]["lr"]
+        forward_backward_time = time.perf_counter() - forward_backward_start_time
+
+        # Broadcast the model just produced (policy v{progress.step}). The final
+        # broadcast keeps inference synchronized with the completed trainer.
+        if weight_sender is None:
+            broadcast_weights_time = 0
+        else:
+            broadcast_weights_start_time = time.perf_counter()
+            # The per-layer gather + fp8 conversion peaks ~50 GiB above the
+            # resident weights; release cached blocks (incl. offload-stream
+            # pools) so the broadcast gets the full headroom. Drain all
+            # pending work first: empty_cache returns blocks to the driver,
+            # so a still-running kernel holding a cached block (e.g. the
+            # optimizer step's tail) faults with an illegal memory access
+            # once its block is freed under it.
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            weight_sender.broadcast(model, step=progress.step)
+            broadcast_weights_time = time.perf_counter() - broadcast_weights_start_time
+
+        # Checkpoint the step we just finished (model = policy v{progress.step}).
+        if (
+            (config.ckpt and config.ckpt.interval)
+            # the last step is written once after the loop (final ckpt), so skip it here
+            and not is_last_step
+            and progress.step % config.ckpt.interval == 0
+        ):
+            logger.info(f"Saving checkpoint at step {progress.step}")
+            save_ckpt_start_time = time.perf_counter()
+            ckpt_manager.save(progress.step, model, [optimizer], scheduler, progress)
+            save_ckpt_time = time.perf_counter() - save_ckpt_start_time
+
+            ckpt_manager.maybe_clean()
+        else:
+            save_ckpt_time = 0
+
+        # Optionally, dump memory snapshot
+        if memory_profiler is not None:
+            memory_profiler.step()
+
+        # Synchronize the tensor metrics across all steps and ranks
+        tensor_stats = tensors.compute_stats()
+
+        # Compute step metrics
+        num_local_tokens = seq_len * batch_size
+        num_tokens = parallel_dims.get_mesh("dp").size() * num_local_tokens
+        progress.total_tokens += num_tokens
+        progress.total_samples += batch_size
+        perf_counter = get_perf_counter(model, seq_len)
+        throughput = perf_counter.get_step_tokens_per_second(num_tokens, forward_backward_time)
+        mfu = perf_counter.get_step_mfu(num_tokens, forward_backward_time)
+        peak_memory = torch.cuda.max_memory_reserved() / 1024**3  # GiB
+        max_peak_memory = max(max_peak_memory, peak_memory)
+
+        # Log step metrics
+        step_time = time.perf_counter() - step_start_time
+        active_step_time = step_time - wait_for_batch_time
+        if progress.step > start_step and wait_for_batch_time >= active_step_time:
+            logger.warning(
+                f"Trainer waited {format_time(wait_for_batch_time)} for a batch, at least as long as its "
+                f"{format_time(active_step_time)} active step time. Train-inference compute is imbalanced; "
+                "add more inference nodes."
+            )
+        step_message = f"Step {progress.step} | {format_time(step_time):>7} | Loss {tensor_stats['loss/mean']:.4f} | Entropy {tensor_stats['entropy/all/mean']:.4f}"
+        if "mismatch_kl/all/mean" in tensor_stats:
+            step_message += f" | Mismatch KL {tensor_stats['mismatch_kl/all/mean']:.4f}"
+        if grad_norm is not None:
+            step_message += f" | Grad. Norm {grad_norm:.4f}"
+        step_message += f" | LR {current_lr:.2e} | Throughput {throughput:.0f} tokens/s | MFU {mfu:.1f}% | Peak Mem. {peak_memory:.1f} GiB"
+        if "max_vio/mean" in tensor_stats:
+            step_message += f" | Max Vio {tensor_stats['max_vio/mean']:.4f}"
+        if "routing_confidence/mean" in tensor_stats:
+            step_message += f" | Routing Conf. {tensor_stats['routing_confidence/mean']:.4f}"
+        logger.success(step_message)
+
+        # Log performance metrics
+        perf_metrics = {
+            "perf/throughput": throughput,
+            "perf/throughput_per_gpu": throughput / world.world_size,
+            "perf/mfu": mfu,
+            "perf/peak_memory": peak_memory,
+            "step": progress.step,
+        }
+        asyncio.run(monitors.log(perf_metrics, step=progress.step))
+
+        # Log optimizer metrics
+        optim_metrics = {
+            "optim/lr": current_lr,
+            "step": progress.step,
+        }
+        if grad_norm is not None:
+            optim_metrics["optim/grad_norm"] = grad_norm.item()
+        asyncio.run(monitors.log(optim_metrics, step=progress.step))
+
+        # Compute derived metrics
+        entropy_mean = tensor_stats.get("entropy/all/mean", 0.0)
+        mismatch_kl_mean = tensor_stats.get("mismatch_kl/all/mean")
+        if mismatch_kl_mean is not None and entropy_mean > 0:
+            tensor_stats["kl_ent_ratio/mean"] = mismatch_kl_mean / entropy_mean
+
+        tensor_stats["step"] = progress.step
+        asyncio.run(monitors.log(filter_rl_trainer_tensor_stats_for_wandb(tensor_stats), step=progress.step))
+
+        # Log time metrics
+        time_metrics = {
+            "time/step": step_time,
+            "time/wait_for_batch": wait_for_batch_time,
+            "time/load_data": load_data_time,
+            "time/broadcast_weights": broadcast_weights_time,
+            "time/save_ckpt": save_ckpt_time,
+            "time/forward_backward": forward_backward_time,
+            "step": progress.step,
+        }
+        asyncio.run(monitors.log(time_metrics, step=progress.step))
+
+        # Log disk metrics
+        disk_metrics = get_ckpt_disk_metrics(config.output_dir)
+        disk_metrics["step"] = progress.step
+        asyncio.run(monitors.log(disk_metrics, step=progress.step))
+
+        # Update Prometheus metrics if configured
+        if metrics_server is not None:
+            metrics_server.update(
+                step=progress.step,
+                loss=tensor_stats["loss/mean"],
+                throughput=throughput,
+                grad_norm=grad_norm.item() if grad_norm is not None else None,
+                peak_memory_gib=peak_memory,
+                learning_rate=current_lr,
+                mfu=mfu,
+                entropy=tensor_stats.get("entropy/all/mean", 0.0),
+                mismatch_kl=tensor_stats.get("mismatch_kl/all/mean", 0.0),
+            )
+
+        # Send heartbeat if configured
+        if heart is not None:
+            heart.beat()
+
+        if is_last_step:
+            break
+        progress.step += 1
+
+    if config.trace_path:
+        prof.__exit__(None, None, None)
+        config.trace_path.mkdir(parents=True, exist_ok=True)
+        trace_file = str(config.trace_path / f"trace_{dist.get_rank()}.json.gz")
+        logger.info(f"Saving trace to {trace_file}")
+        prof.export_chrome_trace(trace_file)
+        logger.info(f"Saved trace to {trace_file}")
+
+    # Write final checkpoint
+    if config.ckpt is not None:
+        logger.info(f"Saving final checkpoint at step {progress.step}")
+        ckpt_manager.save(progress.step, model, [optimizer], scheduler, progress)
+        ckpt_manager.maybe_clean()
+
+    if gradient_manager is not None:
+        gradient_manager.close()
+
+    logger.info(f"Peak memory: {max_peak_memory:.1f} GiB")
+    logger.success("RL trainer finished")
+    asyncio.run(monitors.finalize())
+
+    # Stop metrics/health server if configured
+    if metrics_server is not None:
+        metrics_server.stop()
+    if health_server is not None:
+        health_server.stop()
+
+
+def main():
+    """Main entry-point for RL trainer. Run using `uv run trainer`"""
+    set_proc_title("Trainer")
+    train(cli(TrainerConfig))
+
+
+if __name__ == "__main__":
+    main()

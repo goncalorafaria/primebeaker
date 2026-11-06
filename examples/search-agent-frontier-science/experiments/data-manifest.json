@@ -1,0 +1,12 @@
+[
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/questions.jsonl",
+    "file": "evaluation/runtime/questions.jsonl",
+    "sha256": "6b9c81f71a6ce980cf0b677930afbbf80485b8298aa211ecaf1e06f3aaf2c01a"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/examples/frontier-science-live-search/research-original.jsonl",
+    "file": "evaluation/research-original.jsonl",
+    "sha256": "ebe6649e070cf04a973df04833409b1cb86276c80808f819bf471d2f98219b3c"
+  }
+]

@@ -1,0 +1,18 @@
+# Edit paths for your Weka checkout. prepare.py does not submit jobs.
+[experiment]
+kind = "training"
+name = "search-agent-bf16-resume450-to600"
+workspace = "ai2/oe-agents-holmes"
+cluster = "ai2/holmes"
+priority = "high"
+min_runtime = "4h"
+checkpoint = "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume400-to450-20261103/search-agent-mc32-resume400-to450-20261103/checkpoints/step_450"
+max_steps = 600
+learning_rate = 1e-6
+
+[judge]
+workspace = "ai2/oe-agents"
+cluster = "ai2/jupiter"
+priority = "urgent"
+# Four independently schedulable 4-GPU tasks: 16 GPUs, four TP4 engines.
+engines = 4

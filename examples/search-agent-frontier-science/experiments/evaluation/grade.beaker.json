@@ -1,0 +1,45 @@
+{
+  "version": "v2",
+  "description": "Step430 Jupiter-only BF16 TP4 seeds1-5; Saturn baseline settings; grade",
+  "budget": "ai2/oe-omai",
+  "tasks": [
+    {
+      "name": "grade-430-jupiter-five-seeds",
+      "image": {
+        "beaker": "01M27G8Y678BBF5MWXX6R12BSB"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/grade.sh"
+      ],
+      "hostNetworking": true,
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/result"
+      },
+      "context": {
+        "priority": "urgent",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "envVars": [
+        {
+          "name": "OPENAI_API_KEY",
+          "secret": "OPENAI_API_KEY"
+        }
+      ]
+    }
+  ]
+}

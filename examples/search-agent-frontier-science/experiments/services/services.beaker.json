@@ -1,0 +1,177 @@
+{
+  "version": "v2",
+  "description": "LiteRegistry base deployment: search-agent-frontier-science-py0-t32-s0-ls32-g0-c0-20261027-060106-49541b147f-ca59c7ef",
+  "budget": "ai2/oe-omai",
+  "tasks": [
+    {
+      "name": "redis",
+      "image": {
+        "beaker": "01M27G8Y678BBF5MWXX6R12BSB"
+      },
+      "command": [
+        "bash",
+        "-lc",
+        "for LR_VENV in \"${VIRTUAL_ENV:-}\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \"$LR_VENV\" && -x \"$LR_VENV/bin/python3\" ]]; then export VIRTUAL_ENV=\"$LR_VENV\" PATH=\"$LR_VENV/bin:$PATH\"; break; fi; done; unset LR_VENV; set -euo pipefail; LR_GLOBAL_RANK=$((0 + ${BEAKER_REPLICA_RANK:-0})); LR_PREFERRED_PORT=$((40736 + LR_GLOBAL_RANK)); export LR_GLOBAL_RANK LR_PREFERRED_PORT; exec python3 -m literegistry.coop.ports run  --assignment \"PORT=${LR_PREFERRED_PORT}\" --identity \"search-agent-frontier-science-py0-t32-s0-ls32-g0-c0-20261027-060106-49541b147f-ca59c7ef:redis:${LR_GLOBAL_RANK}\" --host-id \"${BEAKER_NODE_HOSTNAME:-unknown-node}\" --command-json='[\"bash\",\"-lc\",\"for LR_VENV in \\\"${VIRTUAL_ENV:-}\\\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \\\"$LR_VENV\\\" && -x \\\"$LR_VENV/bin/python3\\\" ]]; then export VIRTUAL_ENV=\\\"$LR_VENV\\\" PATH=\\\"$LR_VENV/bin:$PATH\\\"; break; fi; done; unset LR_VENV; REDIS_ADVERTISE_HOST=\\\"${BEAKER_NODE_HOSTNAME:-$(hostname -f)}\\\"; export REDIS_ADVERTISE_HOST; exec literegistry redis --runtime=local --foreground=True --port=\\\"$PORT\\\" --advertise_host=\\\"$REDIS_ADVERTISE_HOST\\\" --head_registry=sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3 --data_dir=/weka/gfaria/.literegistry-coop/search-agent-frontier-science-py0-t32-s0-ls32-g0-c0-20261027-060106-49541b147f-ca59c7ef/redis-data --persistence=True\"]' --lock_dir=/tmp/literegistry-port-locks"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": false,
+      "propagatePreemption": false,
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/result"
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": true
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "envVars": [
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/primebeaker/src:/weka/gfaria/search-agent-repr/prepared-runtime"
+        }
+      ]
+    },
+    {
+      "name": "gateway",
+      "image": {
+        "beaker": "01M27G8Y678BBF5MWXX6R12BSB"
+      },
+      "command": [
+        "bash",
+        "-lc",
+        "for LR_VENV in \"${VIRTUAL_ENV:-}\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \"$LR_VENV\" && -x \"$LR_VENV/bin/python3\" ]]; then export VIRTUAL_ENV=\"$LR_VENV\" PATH=\"$LR_VENV/bin:$PATH\"; break; fi; done; unset LR_VENV; set -euo pipefail; REGISTRY=head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3; export REGISTRY; LR_GLOBAL_RANK=$((0 + ${BEAKER_REPLICA_RANK:-0})); LR_PREFERRED_PORT=$((40864 + LR_GLOBAL_RANK)); export LR_GLOBAL_RANK LR_PREFERRED_PORT; exec python3 -m literegistry.coop.ports run  --assignment \"PORT=${LR_PREFERRED_PORT}\" --identity \"search-agent-frontier-science-py0-t32-s0-ls32-g0-c0-20261027-060106-49541b147f-ca59c7ef:gateway:${LR_GLOBAL_RANK}\" --host-id \"${BEAKER_NODE_HOSTNAME:-unknown-node}\" --command-json='[\"bash\",\"-lc\",\"for LR_VENV in \\\"${VIRTUAL_ENV:-}\\\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \\\"$LR_VENV\\\" && -x \\\"$LR_VENV/bin/python3\\\" ]]; then export VIRTUAL_ENV=\\\"$LR_VENV\\\" PATH=\\\"$LR_VENV/bin:$PATH\\\"; break; fi; done; unset LR_VENV; GATEWAY_ADVERTISE_HOST=\\\"${BEAKER_NODE_HOSTNAME:-$(hostname -f)}\\\"; GATEWAY_URL=\\\"http://${GATEWAY_ADVERTISE_HOST}:${PORT}\\\"; export GATEWAY_URL; exec python3 -m literegistry.coop.endpoints run --root=sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3 --name=gateway --uri=\\\"${GATEWAY_URL}\\\" --healthcheck=http --command-json='\"'\"'[\\\"bash\\\",\\\"-lc\\\",\\\"for LR_VENV in \\\\\\\"${VIRTUAL_ENV:-}\\\\\\\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \\\\\\\"$LR_VENV\\\\\\\" && -x \\\\\\\"$LR_VENV/bin/python3\\\\\\\" ]]; then export VIRTUAL_ENV=\\\\\\\"$LR_VENV\\\\\\\" PATH=\\\\\\\"$LR_VENV/bin:$PATH\\\\\\\"; break; fi; done; unset LR_VENV; exec python -m literegistry.gateway --registry=\\\\\\\"$REGISTRY\\\\\\\" --port=\\\\\\\"$PORT\\\\\\\" --advertise_host=\\\\\\\"$GATEWAY_ADVERTISE_HOST\\\\\\\" --workers=32 --registry_cache_ttl_seconds=5 --timeout=6600 --docker_mirror_soft_affinity=True\\\"]'\"'\"'\"]' --lock_dir=/tmp/literegistry-port-locks"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": false,
+      "propagatePreemption": false,
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/result"
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": true
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "envVars": [
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/primebeaker/src:/weka/gfaria/search-agent-repr/prepared-runtime"
+        }
+      ]
+    },
+    {
+      "name": "terminal",
+      "image": {
+        "beaker": "01M27G8Y678BBF5MWXX6R12BSB"
+      },
+      "command": [
+        "bash",
+        "-lc",
+        "for LR_VENV in \"${VIRTUAL_ENV:-}\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \"$LR_VENV\" && -x \"$LR_VENV/bin/python3\" ]]; then export VIRTUAL_ENV=\"$LR_VENV\" PATH=\"$LR_VENV/bin:$PATH\"; break; fi; done; unset LR_VENV; set -euo pipefail; REGISTRY=head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3; export REGISTRY; LR_GLOBAL_RANK=$((0 + ${BEAKER_REPLICA_RANK:-0})); LR_PREFERRED_PORT=$((41120 + LR_GLOBAL_RANK)); export LR_GLOBAL_RANK LR_PREFERRED_PORT; exec python3 -m literegistry.coop.ports run  --assignment \"PORT=${LR_PREFERRED_PORT}\" --identity \"search-agent-frontier-science-py0-t32-s0-ls32-g0-c0-20261027-060106-49541b147f-ca59c7ef:terminal:${LR_GLOBAL_RANK}\" --host-id \"${BEAKER_NODE_HOSTNAME:-unknown-node}\" --command-json='[\"bash\",\"-lc\",\"for LR_VENV in \\\"${VIRTUAL_ENV:-}\\\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \\\"$LR_VENV\\\" && -x \\\"$LR_VENV/bin/python3\\\" ]]; then export VIRTUAL_ENV=\\\"$LR_VENV\\\" PATH=\\\"$LR_VENV/bin:$PATH\\\"; break; fi; done; unset LR_VENV; for tool in rg grep awk sed jq xsv pandoc sort uniq head tail wc cat nl echo tr cut; do command -v \\\"$tool\\\" >/dev/null || { echo \\\"Missing required terminal command: $tool\\\" >&2; exit 1; }; done; exec literegistry terminal --host=0.0.0.0 --port=\\\"$PORT\\\" --registry=\\\"$REGISTRY\\\"\"]' --lock_dir=/tmp/literegistry-port-locks"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": false,
+      "propagatePreemption": false,
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/result"
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": true
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "replicas": 32,
+      "envVars": [
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/primebeaker/src:/weka/gfaria/search-agent-repr/prepared-runtime"
+        }
+      ]
+    },
+    {
+      "name": "localsearch",
+      "image": {
+        "beaker": "01M27G8XCZ3TMKS6Q0QJWS0CG9"
+      },
+      "command": [
+        "bash",
+        "-lc",
+        "for LR_VENV in \"${VIRTUAL_ENV:-}\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \"$LR_VENV\" && -x \"$LR_VENV/bin/python3\" ]]; then export VIRTUAL_ENV=\"$LR_VENV\" PATH=\"$LR_VENV/bin:$PATH\"; break; fi; done; unset LR_VENV; set -euo pipefail; REGISTRY=head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3; export REGISTRY; LR_GLOBAL_RANK=$((0 + ${BEAKER_REPLICA_RANK:-0})); LR_PREFERRED_PORT=$((41376 + LR_GLOBAL_RANK)); export LR_GLOBAL_RANK LR_PREFERRED_PORT; exec python3 -m literegistry.coop.ports run  --assignment \"PORT=${LR_PREFERRED_PORT}\" --identity \"search-agent-frontier-science-py0-t32-s0-ls32-g0-c0-20261027-060106-49541b147f-ca59c7ef:localsearch:${LR_GLOBAL_RANK}\" --host-id \"${BEAKER_NODE_HOSTNAME:-unknown-node}\" --command-json='[\"bash\",\"-lc\",\"for LR_VENV in \\\"${VIRTUAL_ENV:-}\\\" /opt/literegistry-services-venv /opt/literegistry-terminal-venv /opt/literegistry-redis-venv; do if [[ -n \\\"$LR_VENV\\\" && -x \\\"$LR_VENV/bin/python3\\\" ]]; then export VIRTUAL_ENV=\\\"$LR_VENV\\\" PATH=\\\"$LR_VENV/bin:$PATH\\\"; break; fi; done; unset LR_VENV; LOCAL_SEARCH_CORPUS_JSONL=/weka/gfaria/search-agent-repr/datastore/corpus-offset-index.sqlite; LUCENE_INDEX_DIR=/weka/gfaria/search-agent-repr/datastore/bm25_legacy; LITEREGISTRY_SERVICE_NAME=localsearch:frontier-science; export LOCAL_SEARCH_CORPUS_JSONL LUCENE_INDEX_DIR LITEREGISTRY_SERVICE_NAME; if ! compgen -G \\\"$LUCENE_INDEX_DIR/segments_*\\\" > /dev/null; then mkdir -p \\\"$LUCENE_INDEX_DIR\\\"; JTC_BM25_CORPUS_FILE=\\\"$LOCAL_SEARCH_CORPUS_JSONL\\\" /app/search/build_lucene_index.sh \\\"$(dirname \\\"$LOCAL_SEARCH_CORPUS_JSONL\\\")\\\" \\\"$LUCENE_INDEX_DIR\\\"; fi; LITEREGISTRY_REGISTRY=\\\"$REGISTRY\\\"; LITEREGISTRY_PORT=\\\"$PORT\\\"; LITEREGISTRY_ADVERTISED_HOST=\\\"${BEAKER_NODE_HOSTNAME:-$(hostname -f)}\\\"; export LITEREGISTRY_REGISTRY LITEREGISTRY_PORT LITEREGISTRY_ADVERTISED_HOST; exec python -m uvicorn primebeaker.environments.frontier_science.retrieval_server:create_app --factory --host 0.0.0.0 --port \\\"$PORT\\\"\"]' --lock_dir=/tmp/literegistry-port-locks"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": false,
+      "propagatePreemption": false,
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/result"
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": true
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "replicas": 32,
+      "envVars": [
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/primebeaker/src:/weka/gfaria/search-agent-repr/prepared-runtime"
+        },
+        {
+          "name": "JAVA_HOME",
+          "value": "/weka/gfaria/search-agent-repr/lucene_files/jdk-21"
+        }
+      ]
+    }
+  ]
+}

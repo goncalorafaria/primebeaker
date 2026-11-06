@@ -1,0 +1,643 @@
+{
+  "version": "v2",
+  "description": "Resume450 to600; BF16 weights/reductions LR1e-6; CP4 trainer +3 TP4 FP8/FP8KV inference; MC32; Holmes high priority min4h",
+  "tasks": [
+    {
+      "name": "trainer",
+      "image": {
+        "docker": "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/start-policy.sh"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": true,
+      "propagatePreemption": true,
+      "envVars": [
+        {
+          "name": "CONFIG_PATH",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/train.toml"
+        },
+        {
+          "name": "GATEWAY_PORT",
+          "value": "1212"
+        },
+        {
+          "name": "GATEWAY_WORKERS",
+          "value": "8"
+        },
+        {
+          "name": "GPUS_PER_NODE",
+          "value": "4"
+        },
+        {
+          "name": "HF_HOME",
+          "value": "/weka/gfaria/prime_sft_beaker_scratch/ugr-runs/.cache/huggingface"
+        },
+        {
+          "name": "JUDGE_TIMEOUT",
+          "value": "6600"
+        },
+        {
+          "name": "LAUNCH_ID",
+          "value": "d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "LOCAL_SEARCH_MODEL_PATHS_JSON",
+          "value": "[\"localsearch:frontier-science\"]"
+        },
+        {
+          "name": "MIXED_INFER_GPU_COUNT",
+          "value": "0"
+        },
+        {
+          "name": "OUTPUT_DIR",
+          "value": "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume450-to600-bf16-20261105"
+        },
+        {
+          "name": "REGISTRY",
+          "value": "head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "RENDEZVOUS_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/rendezvous/d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "RENDEZVOUS_TIMEOUT_SECONDS",
+          "value": "86400"
+        },
+        {
+          "name": "REQUIRED_LITEREGISTRY_SERVICES",
+          "value": "{\"judge:search-agent-pengin9b-rl400\":1,\"localsearch:frontier-science\":1,\"terminal\":1}"
+        },
+        {
+          "name": "SCRATCH",
+          "value": "/weka/gfaria/search-agent-repr/policy-16train-8infer-cp4-mc32-resume20"
+        },
+        {
+          "name": "TIMEOUT",
+          "value": "2700"
+        },
+        {
+          "name": "TOTAL_INFER_RANKS",
+          "value": "3"
+        },
+        {
+          "name": "TOTAL_NODES",
+          "value": "4"
+        },
+        {
+          "name": "TRAINER_GPU_COUNT",
+          "value": "4"
+        },
+        {
+          "name": "WANDB_ENTITY",
+          "value": "graf"
+        },
+        {
+          "name": "WANDB_RESUME",
+          "value": "allow"
+        },
+        {
+          "name": "WANDB_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WANDB_SHARED_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WORKING_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-holmes-mc128"
+        },
+        {
+          "name": "HF_TOKEN",
+          "secret": "HF_TOKEN"
+        },
+        {
+          "name": "WANDB_API_KEY",
+          "secret": "gfaria_WANDB_API_KEY"
+        },
+        {
+          "name": "INFERENCE_API_PROCESSES_PER_ENGINE",
+          "value": "4"
+        },
+        {
+          "name": "NUM_TRAIN_NODES",
+          "value": "1"
+        },
+        {
+          "name": "TRAINER_MASTER_PORT",
+          "value": "29757"
+        },
+        {
+          "name": "PRL_NODE_RANK",
+          "value": "0"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/holmes"
+        ]
+      }
+    },
+    {
+      "name": "inference-1",
+      "image": {
+        "docker": "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/start-policy.sh"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": true,
+      "propagatePreemption": true,
+      "envVars": [
+        {
+          "name": "CONFIG_PATH",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/train.toml"
+        },
+        {
+          "name": "GATEWAY_PORT",
+          "value": "1212"
+        },
+        {
+          "name": "GATEWAY_WORKERS",
+          "value": "8"
+        },
+        {
+          "name": "GPUS_PER_NODE",
+          "value": "4"
+        },
+        {
+          "name": "HF_HOME",
+          "value": "/weka/gfaria/prime_sft_beaker_scratch/ugr-runs/.cache/huggingface"
+        },
+        {
+          "name": "JUDGE_TIMEOUT",
+          "value": "6600"
+        },
+        {
+          "name": "LAUNCH_ID",
+          "value": "d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "LOCAL_SEARCH_MODEL_PATHS_JSON",
+          "value": "[\"localsearch:frontier-science\"]"
+        },
+        {
+          "name": "MIXED_INFER_GPU_COUNT",
+          "value": "0"
+        },
+        {
+          "name": "OUTPUT_DIR",
+          "value": "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume450-to600-bf16-20261105"
+        },
+        {
+          "name": "REGISTRY",
+          "value": "head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "RENDEZVOUS_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/rendezvous/d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "RENDEZVOUS_TIMEOUT_SECONDS",
+          "value": "86400"
+        },
+        {
+          "name": "REQUIRED_LITEREGISTRY_SERVICES",
+          "value": "{\"judge:search-agent-pengin9b-rl400\":1,\"localsearch:frontier-science\":1,\"terminal\":1}"
+        },
+        {
+          "name": "SCRATCH",
+          "value": "/weka/gfaria/search-agent-repr/policy-16train-8infer-cp4-mc32-resume20"
+        },
+        {
+          "name": "TIMEOUT",
+          "value": "2700"
+        },
+        {
+          "name": "TOTAL_INFER_RANKS",
+          "value": "3"
+        },
+        {
+          "name": "TOTAL_NODES",
+          "value": "4"
+        },
+        {
+          "name": "TRAINER_GPU_COUNT",
+          "value": "4"
+        },
+        {
+          "name": "WANDB_ENTITY",
+          "value": "graf"
+        },
+        {
+          "name": "WANDB_RESUME",
+          "value": "allow"
+        },
+        {
+          "name": "WANDB_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WANDB_SHARED_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WORKING_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-holmes-mc128"
+        },
+        {
+          "name": "HF_TOKEN",
+          "secret": "HF_TOKEN"
+        },
+        {
+          "name": "WANDB_API_KEY",
+          "secret": "gfaria_WANDB_API_KEY"
+        },
+        {
+          "name": "INFERENCE_API_PROCESSES_PER_ENGINE",
+          "value": "4"
+        },
+        {
+          "name": "NUM_TRAIN_NODES",
+          "value": "1"
+        },
+        {
+          "name": "TRAINER_MASTER_PORT",
+          "value": "29757"
+        },
+        {
+          "name": "PRL_NODE_RANK",
+          "value": "1"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/holmes"
+        ]
+      }
+    },
+    {
+      "name": "inference-2",
+      "image": {
+        "docker": "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/start-policy.sh"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": true,
+      "propagatePreemption": true,
+      "envVars": [
+        {
+          "name": "CONFIG_PATH",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/train.toml"
+        },
+        {
+          "name": "GATEWAY_PORT",
+          "value": "1212"
+        },
+        {
+          "name": "GATEWAY_WORKERS",
+          "value": "8"
+        },
+        {
+          "name": "GPUS_PER_NODE",
+          "value": "4"
+        },
+        {
+          "name": "HF_HOME",
+          "value": "/weka/gfaria/prime_sft_beaker_scratch/ugr-runs/.cache/huggingface"
+        },
+        {
+          "name": "JUDGE_TIMEOUT",
+          "value": "6600"
+        },
+        {
+          "name": "LAUNCH_ID",
+          "value": "d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "LOCAL_SEARCH_MODEL_PATHS_JSON",
+          "value": "[\"localsearch:frontier-science\"]"
+        },
+        {
+          "name": "MIXED_INFER_GPU_COUNT",
+          "value": "0"
+        },
+        {
+          "name": "OUTPUT_DIR",
+          "value": "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume450-to600-bf16-20261105"
+        },
+        {
+          "name": "REGISTRY",
+          "value": "head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "RENDEZVOUS_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/rendezvous/d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "RENDEZVOUS_TIMEOUT_SECONDS",
+          "value": "86400"
+        },
+        {
+          "name": "REQUIRED_LITEREGISTRY_SERVICES",
+          "value": "{\"judge:search-agent-pengin9b-rl400\":1,\"localsearch:frontier-science\":1,\"terminal\":1}"
+        },
+        {
+          "name": "SCRATCH",
+          "value": "/weka/gfaria/search-agent-repr/policy-16train-8infer-cp4-mc32-resume20"
+        },
+        {
+          "name": "TIMEOUT",
+          "value": "2700"
+        },
+        {
+          "name": "TOTAL_INFER_RANKS",
+          "value": "3"
+        },
+        {
+          "name": "TOTAL_NODES",
+          "value": "4"
+        },
+        {
+          "name": "TRAINER_GPU_COUNT",
+          "value": "4"
+        },
+        {
+          "name": "WANDB_ENTITY",
+          "value": "graf"
+        },
+        {
+          "name": "WANDB_RESUME",
+          "value": "allow"
+        },
+        {
+          "name": "WANDB_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WANDB_SHARED_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WORKING_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-holmes-mc128"
+        },
+        {
+          "name": "HF_TOKEN",
+          "secret": "HF_TOKEN"
+        },
+        {
+          "name": "WANDB_API_KEY",
+          "secret": "gfaria_WANDB_API_KEY"
+        },
+        {
+          "name": "INFERENCE_API_PROCESSES_PER_ENGINE",
+          "value": "4"
+        },
+        {
+          "name": "NUM_TRAIN_NODES",
+          "value": "1"
+        },
+        {
+          "name": "TRAINER_MASTER_PORT",
+          "value": "29757"
+        },
+        {
+          "name": "PRL_NODE_RANK",
+          "value": "2"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/holmes"
+        ]
+      }
+    },
+    {
+      "name": "inference-3",
+      "image": {
+        "docker": "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/start-policy.sh"
+      ],
+      "hostNetworking": true,
+      "propagateFailure": true,
+      "propagatePreemption": true,
+      "envVars": [
+        {
+          "name": "CONFIG_PATH",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/train.toml"
+        },
+        {
+          "name": "GATEWAY_PORT",
+          "value": "1212"
+        },
+        {
+          "name": "GATEWAY_WORKERS",
+          "value": "8"
+        },
+        {
+          "name": "GPUS_PER_NODE",
+          "value": "4"
+        },
+        {
+          "name": "HF_HOME",
+          "value": "/weka/gfaria/prime_sft_beaker_scratch/ugr-runs/.cache/huggingface"
+        },
+        {
+          "name": "JUDGE_TIMEOUT",
+          "value": "6600"
+        },
+        {
+          "name": "LAUNCH_ID",
+          "value": "d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "LOCAL_SEARCH_MODEL_PATHS_JSON",
+          "value": "[\"localsearch:frontier-science\"]"
+        },
+        {
+          "name": "MIXED_INFER_GPU_COUNT",
+          "value": "0"
+        },
+        {
+          "name": "OUTPUT_DIR",
+          "value": "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume450-to600-bf16-20261105"
+        },
+        {
+          "name": "REGISTRY",
+          "value": "head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "RENDEZVOUS_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/rendezvous/d00af736c96e4486868289d5f0880ac7"
+        },
+        {
+          "name": "RENDEZVOUS_TIMEOUT_SECONDS",
+          "value": "86400"
+        },
+        {
+          "name": "REQUIRED_LITEREGISTRY_SERVICES",
+          "value": "{\"judge:search-agent-pengin9b-rl400\":1,\"localsearch:frontier-science\":1,\"terminal\":1}"
+        },
+        {
+          "name": "SCRATCH",
+          "value": "/weka/gfaria/search-agent-repr/policy-16train-8infer-cp4-mc32-resume20"
+        },
+        {
+          "name": "TIMEOUT",
+          "value": "2700"
+        },
+        {
+          "name": "TOTAL_INFER_RANKS",
+          "value": "3"
+        },
+        {
+          "name": "TOTAL_NODES",
+          "value": "4"
+        },
+        {
+          "name": "TRAINER_GPU_COUNT",
+          "value": "4"
+        },
+        {
+          "name": "WANDB_ENTITY",
+          "value": "graf"
+        },
+        {
+          "name": "WANDB_RESUME",
+          "value": "allow"
+        },
+        {
+          "name": "WANDB_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WANDB_SHARED_RUN_ID",
+          "value": "7450f5c21f5347aaa64ecfb78092f29d"
+        },
+        {
+          "name": "WORKING_DIR",
+          "value": "/weka/gfaria/search-agent-repr/policy-holmes-mc128"
+        },
+        {
+          "name": "HF_TOKEN",
+          "secret": "HF_TOKEN"
+        },
+        {
+          "name": "WANDB_API_KEY",
+          "secret": "gfaria_WANDB_API_KEY"
+        },
+        {
+          "name": "INFERENCE_API_PROCESSES_PER_ENGINE",
+          "value": "4"
+        },
+        {
+          "name": "NUM_TRAIN_NODES",
+          "value": "1"
+        },
+        {
+          "name": "TRAINER_MASTER_PORT",
+          "value": "29757"
+        },
+        {
+          "name": "PRL_NODE_RANK",
+          "value": "3"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "context": {
+        "priority": "high",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/holmes"
+        ]
+      }
+    }
+  ],
+  "budget": "ai2/oe-omai"
+}

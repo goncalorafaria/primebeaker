@@ -1,0 +1,31 @@
+schema: primebeaker.services/v1
+services:
+  head_registry: sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3
+  workspace: ai2/oe-agents
+  budget: ai2/oe-omai
+  service_clusters:
+  - ai2/jupiter
+  gateway_cluster: ai2/jupiter
+  redis_cluster: ai2/jupiter
+  model_cluster: ai2/jupiter
+  service_priority: high
+  min_runtime_hours: 4
+  omit_service_resources: true
+  name_prefix: search-agent-frontier-science
+  gateway_workers: 32
+  python_replicas: 0
+  web_search_replicas: 0
+  terminal_replicas: 32
+  terminal_image: 01M27G8Y678BBF5MWXX6R12BSB
+  local_search_replicas: 32
+  local_search_service_name: localsearch:frontier-science
+  local_search_corpus_jsonl: /weka/gfaria/search-agent-repr/datastore/corpus-offset-index.sqlite
+  local_search_index_dir: /weka/gfaria/search-agent-repr/datastore/bm25_legacy
+  local_search_image: 01M27G8XCZ3TMKS6Q0QJWS0CG9
+  services_image: 01M27G8Y678BBF5MWXX6R12BSB
+  redis_image: 01M27G8Y678BBF5MWXX6R12BSB
+  vllm_image: 01M3WPHYKDAZ4533VCDZGNZGHZ
+  serper_api_key_secret: null
+  jina_api_key_secret: null
+  hf_token_secret: null
+  gateway_timeout: 6600
