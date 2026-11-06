@@ -113,3 +113,5 @@ Set `curve_smoothing_steps` to an integer greater than one (for example, `10`) t
 ### Separate experiment views
 
 Use `dashboard_mounts: [{"path": "/pengin", "config": "pengin-dashboard.json"}]` to serve another manifest under the same dashboard origin. Every view keeps its own state directory, W&B identities, inference history, and judge discovery configuration. Add `linked_dashboards: [{"label": "MoE", "href": "/"}, {"label": "Pengin", "href": "/pengin/"}]` to each manifest for navigation. Collect each manifest independently. Mounting a view does not merge its measurements with another view.
+
+Both policy summary cards show their own rollout batch progress, inflight episode count, and buffered episode count. Missing counters are shown as unavailable rather than zero.

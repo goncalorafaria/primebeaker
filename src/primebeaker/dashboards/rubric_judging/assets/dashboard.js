@@ -12,16 +12,20 @@ function runState(id) {
   return snapshot.jobs.find(j => j.role === id)?.state || 'unknown';
 }
 
+function rolloutDetails(metrics) {
+  return 'Rollout batch ' + (metrics.train_batch || 'pending') + ' · ' + number(metrics.episodes_inflight) + ' inflight · ' + number(metrics.buffered_episodes) + ' buffered';
+}
+
 function render(s) {
   snapshot = s;
   freshness();
   const runs = config.runs, primary = s.runs[runs[0].id]?.trainer || {};
   el('step').textContent = primary.completed_optimizer_step ?? (runState(runs[0].id) === 'running' ? 'First step pending' : runState(runs[0].id));
-  el('batch').textContent = 'Next rollout batch ' + (primary.train_batch || 'pending') + ' · ' + number(primary.episodes_inflight) + ' inflight · ' + number(primary.buffered_episodes) + ' buffered';
+  el('batch').textContent = rolloutDetails(primary);
   if (runs[1]) {
     const second = s.runs[runs[1].id]?.trainer || {};
     el('base').textContent = second.completed_optimizer_step ?? runState(runs[1].id);
-    el('basebatch').textContent = 'Rollout batch ' + (second.train_batch || 'pending');
+    el('basebatch').textContent = rolloutDetails(second);
   } else {
     el('base').textContent = 'Not configured';
     el('basebatch').textContent = '';
