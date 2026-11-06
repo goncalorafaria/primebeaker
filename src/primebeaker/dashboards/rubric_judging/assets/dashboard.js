@@ -76,10 +76,10 @@ async function curves() {
       const series = runs.map((run, i) => ({name: run.label, historical: baselineIds.has(run.id), color: run.color || palette[i % palette.length], points: (data.runs[run.id]?.curves?.[kind]?.points || [])
         .filter(point => config.curve_max_step == null || point.step <= config.curve_max_step)}))
         .sort((a, b) => Number(b.historical) - Number(a.historical));
-      renderPlot(el('plot-' + suffix), series, {label: kind, scale});
+      renderPlot(el('plot-' + suffix), series, {label: kind, scale, smoothingSteps: config.curve_smoothing_steps || 1});
       el('source-' + suffix).textContent = [...new Set(runs.map(r => data.runs[r.id]?.curves?.[kind]?.metric).filter(Boolean))].join(' · ');
     }
-    el('curves-status').textContent = 'W&B checked ' + new Date(data.fetched_at).toLocaleString() + ' · ' + runs.map(run => run.label + ': ' + (data.runs[run.id]?.available ? (data.runs[run.id].historical ? 'saved baseline' : 'history loaded') : data.runs[run.id]?.curves ? 'cached history; refresh unavailable' : 'no history available yet')).join(' · ') + (config.curve_max_step == null ? '' : ' · shown through step ' + config.curve_max_step);
+    el('curves-status').textContent = 'W&B checked ' + new Date(data.fetched_at).toLocaleString() + ' · ' + runs.map(run => run.label + ': ' + (data.runs[run.id]?.available ? (data.runs[run.id].historical ? 'saved baseline' : 'history loaded') : data.runs[run.id]?.curves ? 'cached history; refresh unavailable' : 'no history available yet')).join(' · ') + (config.curve_max_step == null ? '' : ' · shown through step ' + config.curve_max_step) + (config.curve_smoothing_steps > 1 ? ' · trailing ' + config.curve_smoothing_steps + '-step mean; faint raw values' : '');
   } catch (error) { el('curves-status').textContent = error.message; }
 }
 

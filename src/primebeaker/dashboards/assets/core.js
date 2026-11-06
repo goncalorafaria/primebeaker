@@ -14,7 +14,7 @@ export async function getJSON(url) {
   return response.json();
 }
 
-export function renderPlot(target, series, {label = 'Metric', scale = 1, xMode = 'step', zeroFloor = false} = {}) {
+export function renderPlot(target, series, {label = 'Metric', scale = 1, xMode = 'step', zeroFloor = false, smoothingSteps = 1} = {}) {
   series = series.map((s, i) => ({...s, color: s.color || palette[i % palette.length], points: (s.points || [])
     .filter(p => Number.isFinite(p.step)).map(p => ({x: p.step, y: Number.isFinite(p.value) ? p.value / scale : null, raw: p.value}))}));
   const points = series.flatMap(s => s.points).filter(p => p.y !== null);
@@ -43,17 +43,30 @@ export function renderPlot(target, series, {label = 'Metric', scale = 1, xMode =
   for (const value of ticks) svg += '<text x="' + px(value) + '" y="' + (h - bottom + 24) + '" text-anchor="middle" fill="#a6b4c9" font-size="13">' + escape(xText(value)) + '</text>';
   svg += '<text x="' + ((w + left - right) / 2) + '" y="' + (h - 5) + '" text-anchor="middle" fill="#a6b4c9" font-size="13">' + escape(xLabel) + '</text>';
   for (const source of series) {
-    let segment = [];
-    const flush = () => {
-      if (segment.length > 1) svg += '<polyline fill="none" stroke="' + source.color + '" stroke-width="2.5" points="' + segment.map(p => px(p.x) + ',' + py(p.y)).join(' ') + '"/>';
-      segment = [];
+    const draw = (points, opacity, width, markers) => {
+      let segment = [];
+      const flush = () => {
+        if (segment.length > 1) svg += '<polyline fill="none" stroke="' + source.color + '" stroke-opacity="' + opacity + '" stroke-width="' + width + '" points="' + segment.map(p => px(p.x) + ',' + py(p.y)).join(' ') + '"/>';
+        segment = [];
+      };
+      for (const p of points) {
+        if (p.y === null) { flush(); continue; }
+        segment.push(p);
+        if (markers) svg += '<circle cx="' + px(p.x) + '" cy="' + py(p.y) + '" r="' + (xMode === 'time' ? 2 : smoothingSteps > 1 ? 2 : 4) + '" fill="' + source.color + '" fill-opacity="' + opacity + '"><title>' + escape(source.name + ' · ' + (xMode === 'time' ? new Date(p.x).toLocaleString() : 'step ' + p.x) + ' · ' + number(p.raw)) + '</title></circle>';
+      }
+      flush();
     };
-    for (const p of source.points) {
-      if (p.y === null) { flush(); continue; }
-      segment.push(p);
-      svg += '<circle cx="' + px(p.x) + '" cy="' + py(p.y) + '" r="' + (xMode === 'time' ? 2 : 4) + '" fill="' + source.color + '"><title>' + escape(source.name + ' · ' + (xMode === 'time' ? new Date(p.x).toLocaleString() : 'step ' + p.x) + ' · ' + number(p.raw)) + '</title></circle>';
-    }
-    flush();
+    if (smoothingSteps > 1 && xMode === 'step') {
+      let window = [];
+      const smooth = source.points.map(p => {
+        if (p.y === null) { window = []; return p; }
+        window = window.filter(v => v.x > p.x - smoothingSteps);
+        window.push(p);
+        return {...p, y: window.reduce((sum, v) => sum + v.y, 0) / window.length};
+      });
+      draw(source.points, .18, 1, true);
+      draw(smooth, 1, 2.5, false);
+    } else draw(source.points, 1, 2.5, true);
   }
   target.innerHTML = svg + '</svg>';
 }

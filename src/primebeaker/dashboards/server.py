@@ -74,6 +74,7 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                                        "runs": [{"id": r["id"], "label": r.get("label", r["id"]), "color": r.get('color')} for r in config.runs],
                                        "baselines": [{k: b.get(k) for k in ('id', 'label', 'color')} for b in config.data.get('baselines', [])],
                                        "curve_max_step": config.data.get('curve_max_step'),
+                                       "curve_smoothing_steps": config.data.get('curve_smoothing_steps', 1),
                                        "curve_caveat": config.data.get('curve_caveat', '')}).encode()
                 else:
                     self.send_error(404)
