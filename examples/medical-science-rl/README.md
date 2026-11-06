@@ -120,6 +120,38 @@ Podman/gateway base IDs alone are insufficient: the operational deployment had
 startup discovery/cache fixes and preloaded tools. This example reuses its head
 instead of claiming those fixes are baked into a newly published tool image.
 
+## Public experiment dataset
+
+The exact input slices are published at
+[`graf/rubrichub-medical-science-rl-slice`](https://huggingface.co/datasets/graf/rubrichub-medical-science-rl-slice).
+Release revision: `667c5d18eb9182c34919d427e71acec3b99c764e`.
+There are 6,437 training questions with 229,632 signed rubric items, and 256
+multiple-choice validation questions. The two schemas have separate Hub configs:
+`rubric_rl` (train) and `mc_validation` (validation). Negative signs, original
+rubric indices, prompt ordering and validation provenance are preserved.
+
+Download the original files consumed by the tasksets, with a pinned Hub revision
+and SHA256 checks against the release manifest:
+
+```bash
+uv run --with huggingface_hub python examples/medical-science-rl/download_data.py \
+  --directory /weka/gfaria/datasets/rubrichub-medical-science-rl-slice
+```
+
+Then add these arguments to any `prepare` command below:
+
+```bash
+--train-data /weka/gfaria/datasets/rubrichub-medical-science-rl-slice/original/rubric_rl \
+--eval-data /weka/gfaria/datasets/rubrichub-medical-science-rl-slice/original/validation.jsonl
+```
+
+The original Weka paths remain defaults for reproducing existing jobs. Hub Parquet
+exports are also available via `load_dataset`; do not substitute the dataset
+viewer schema for the on-disk directory path expected by this taskset. The source
+training revision/selection recipe was not retained; this release preserves the
+exact staged experiment slice rather than inventing reconstruction provenance.
+See the Hub card and `LICENSES.md` for upstream attribution and component licenses.
+
 ## Prepare a fresh Base run
 
 Run from a mounted PrimeBeaker checkout. Python3.11+ and a configured Beaker CLI
@@ -159,10 +191,10 @@ workspace before clearing an intent manually.
 
 Placement defaults:
 
-- Trainer: `ai2/oe-agents-holmes`, `ai2/holmes`, 8 GPUs, **high**, minimum4h.
-- Judge model: `ai2/oe-agents`, `ai2/jupiter`, TP4 (4 GPUs), **high**, minimum4h.
+- Trainer: `ai2/oe-agents-holmes`, `ai2/holmes`, 8 GPUs, **high**, minimum 4h.
+- Judge model: `ai2/oe-agents`, `ai2/jupiter`, TP4 (4 GPUs), **high**, minimum 4h.
 - Judge API: `ai2/oe-agents`, Jupiter, CPU-only, **no CPU/GPU resource requests**,
-  high, minimum4h.
+  high, minimum 4h.
 
 `--judge-cluster ai2/holmes` moves only model serving to Holmes, keeps it high,
 and selects `oe-agents-holmes`; the CPU API remains on Jupiter. To submit model
@@ -191,7 +223,7 @@ For the Instruct companion, prepare with `--phase instruct-0-800` and a distinct
 run name/directory. The model/context/prompt switch is in its full TOML, not just
 a label. All modes use the medical/science data unless explicitly overridden.
 
-## Resume Base at400 with32k output and4train/4infer
+## Resume Base at 400 with 32k output and 4 train / 4 infer
 
 Wait for the successful phase-one checkpoint to contain both
 `checkpoints/step_400/trainer/.metadata` and
@@ -217,7 +249,7 @@ The four-trainer phase relies on native distributed-checkpoint resharding from
 its two-trainer checkpoint. Keep compatible PrimeRL/Torch versions.
 
 Base phase one leaves the judge pool alive for continuation. After a successful
-step800, the worker writes the completion marker and its model/API supervisors
+step 800, the worker writes the completion marker and its model/API supervisors
 exit. A failed/preempted policy does not mark completion. Stop leftover service
 experiments explicitly with `beaker experiment stop EXPERIMENT_ID` if abandoning
 a run; the launcher never cancels an unrelated shared deployment.
@@ -243,7 +275,7 @@ rollout; it is not silently accepted as a valid judgment. Judge labels are pass/
 Use the [shared dashboard](../dashboards/README.md) to inspect current optimizer
 step, batch waiting, active/queued requests, interval mean request latency, KV
 cache, W&B reward and episode token length. Track producer/run identity when
-comparing resumed histories. `time/step` means one256-rollout optimizer update
+comparing resumed histories. `time/step` means one 256-rollout optimizer update
 including waiting, not one model request. `num_total_tokens` includes policy input
 and generated output, not judge reasoning. Compare raw gradient norms cautiously
 across LR/MC32/precision changes, and report historical judge context-overflow /
