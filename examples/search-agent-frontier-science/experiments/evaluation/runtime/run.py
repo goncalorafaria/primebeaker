@@ -19,6 +19,18 @@ ROOT = Path(__file__).resolve().parent
 async def main(args):
     from jtc.common.workflows import search_agent_rollout_workflow as w
     config = json.loads(Path(args.settings).read_text())
+    template = Path(config['template_path'])
+    if not template.is_absolute():
+        template = ROOT / template
+        if not template.is_file() and config['template_path'] == 'assets/prompt.json':
+            # Direct use from a checkout: resolve the canonical versioned assets.
+            template = next((parent / 'src/primebeaker/environments/frontier_science/resources/science/prompt.json'
+                             for parent in ROOT.parents
+                             if (parent / 'src/primebeaker/environments/frontier_science/resources/science/prompt.json').is_file()), template)
+    for name in ('prompt.json', 'search-description.txt', 'webterminal-description.txt', 'final-warning.txt'):
+        if not template.with_name(name).is_file():
+            raise FileNotFoundError(f'Missing search-agent prompt asset: {template.with_name(name)}')
+    config['template_path'] = str(template)
     config['search_model_path'] = os.environ.get('EVAL_SEARCH_MODEL_PATH', config['search_model_path'])
     rows = [json.loads(line) for line in (ROOT / 'questions.jsonl').open()]
     if args.max_rows:

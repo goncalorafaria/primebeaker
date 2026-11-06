@@ -1,0 +1,4 @@
+Open a source URL and inspect its page contents with a terminal pipeline.
+
+Use this after search: a search snippet is only a lead. Inspect the
+source itself with commands such as `browse <url> | rg -n -i pattern`.

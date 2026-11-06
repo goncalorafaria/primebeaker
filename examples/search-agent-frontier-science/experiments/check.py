@@ -23,6 +23,12 @@ with tempfile.TemporaryDirectory(prefix='search-agent-example-') as temp:
   else:
    spec=json.loads((out/'eval.beaker.json').read_text());assert spec['tasks'][0]['resources']['gpuCount']==4
    assert len(json.loads((out/'manifest.json').read_text()))==5
+   settings=json.loads((out/'runtime/settings.json').read_text())
+   template=Path(settings['template_path'])
+   assert template==out/'runtime/assets/prompt.json'
+   canonical=ROOT.parents[2]/'src/primebeaker/environments/frontier_science/resources/science'
+   for name in ['prompt.json','search-description.txt','webterminal-description.txt','final-warning.txt']:
+    assert template.with_name(name).read_bytes()==(canonical/name).read_bytes()
    assert str(out/'runtime') in (out/'start.sh').read_text()
    assert str(out) in (out/'grade.py').read_text()
    assert 'resources' not in json.loads((out/'grade.beaker.json').read_text())['tasks'][0]

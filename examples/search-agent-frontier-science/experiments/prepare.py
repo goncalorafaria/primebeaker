@@ -65,7 +65,11 @@ def main():
    shutil.copy2(source,out/record['file'].removeprefix('evaluation/'))
   step=int(c['step']);seeds=c['seeds'];assert seeds and len(set(seeds))==len(seeds) and all(type(x)==int and x>=0 for x in seeds)
   assert c['jina_format'] in ['default','markdown'];assert Path(c['model']).is_dir(),c['model']
-  settings=json.loads((out/'runtime/settings.json').read_text());settings.update(cfg['sampling']);dump(out/'runtime/settings.json',settings)
+  assets=ROOT.parents[2]/'src/primebeaker/environments/frontier_science/resources/science'
+  shutil.copytree(assets,out/'runtime/assets',dirs_exist_ok=True)
+  settings=json.loads((out/'runtime/settings.json').read_text());settings.update(cfg['sampling'])
+  settings['template_path']=str(out/'runtime/assets/prompt.json')
+  dump(out/'runtime/settings.json',settings)
   for t in spec['tasks']:envset(t,EVAL_OUTPUT_DIR=out/f'step{step}',MODEL_PATH=c['model'],CHECKPOINT_PATH=c['checkpoint'],EVAL_SEED=seeds[0],JINA_FORMAT=c['jina_format'])
   p=out/'start.sh';s=p.read_text();s=s.replace('for seed in 1 2 3 4 5; do','for seed in '+' '.join(map(str,seeds))+'; do');s=s.replace('search:frontier430-jupiter-five-',f'search:{c["name"]}-{launch[:8]}-');p.write_text(s)
   # Dependencies are deliberately external; do not silently copy mutable site-packages.
