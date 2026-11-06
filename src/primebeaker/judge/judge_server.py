@@ -13,6 +13,8 @@ import asyncio
 import logging
 import os
 import socket
+import time
+from packaging.version import Version, InvalidVersion
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -70,6 +72,7 @@ class JudgeRequest:
     output: str
     rubrics: list[str]
     model: str
+    include_judge_trace: bool = False
 
     @classmethod
     def from_json(cls, payload: Any) -> "JudgeRequest":
@@ -95,11 +98,14 @@ class JudgeRequest:
             raise ValueError("rubrics must be a non-empty list of text")
         if not all(isinstance(rubric, str) and rubric.strip() for rubric in rubrics):
             raise ValueError("each rubric must be non-empty text")
+        if not isinstance(payload.get("include_judge_trace", False), bool):
+            raise ValueError("include_judge_trace must be a boolean")
         return cls(
             input=input_text,
             output=output_text,
             rubrics=rubrics,
             model=model.strip(),
+            include_judge_trace=payload.get("include_judge_trace", False),
         )
 
 class JudgeServer:
@@ -110,8 +116,13 @@ class JudgeServer:
         self.store = get_kvstore(self.config.registry)
         self.server_registry = ServerRegistry(store=self.store)
         self.url = f"http://{socket.getfqdn()}"
+        self._version_check_after: dict[str, float] = {}
+        self._version_warnings: set[tuple[str, str, str]] = set()
         self._running = False
         self._heartbeat_task: asyncio.Task[None] | None = None
+        # Opt in during rollout/benchmarking; existing deployments keep their behavior.
+        from primebeaker.judge.verifier_runner import JudgeRuntime
+        self.runtime = JudgeRuntime(self.config) if os.getenv("JUDGE_PRELOAD_HARNESS", "0") == "1" else None
         self.app = self._create_app()
 
     def _metadata(self) -> dict[str, Any]:
@@ -129,6 +140,10 @@ class JudgeServer:
         }
 
     async def start(self) -> None:
+        if self.runtime is not None:
+            # Verifiers installs signal handlers: preload on the main thread,
+            # before registration/traffic, rather than in a thread executor.
+            self.runtime.warm()
         await self.server_registry.register_server(
             url=self.url, port=self.config.port, metadata=self._metadata()
         )
@@ -165,12 +180,50 @@ class JudgeServer:
             if close is not None:
                 await close()
 
+    async def _warn_serving_version(self, model: str) -> None:
+        # Warning-only compatibility check, refreshed to catch replacement nodes.
+        if time.monotonic() < self._version_check_after.get(model, 0):
+            return
+        self._version_check_after[model] = time.monotonic() + 60
+        try:
+            roster = await asyncio.wait_for(self.server_registry.roster(), timeout=2)
+            servers = [s for s in roster.get("servers", [])
+                       if s.get("metadata", {}).get("model_path") == model]
+            if not servers:
+                servers = [{"url": "undiscovered", "metadata": {}}]
+            for server in servers:
+                metadata = server.get("metadata", {})
+                version = metadata.get("vllm_version")
+                endpoint = f"{server.get('url')}:{server.get('port')}"
+                try:
+                    supported = version is not None and Version(str(version)) >= Version("0.29.0")
+                except InvalidVersion:
+                    supported = False
+                key = (model, endpoint, str(version))
+                if not supported and key not in self._version_warnings:
+                    self._version_warnings.add(key)
+                    logger.warning(
+                        "Judge model=%s endpoint=%s reports vLLM=%s; judge serving is "
+                        "pinned to 0.29.0. Older Qwen3.5 parsers can leave tool calls "
+                        "inside reasoning. Missing/unparseable versions cannot be "
+                        "verified. Continuing (warning only).",
+                        model, endpoint, version or "unknown",
+                    )
+        except Exception as exc:
+            key = (model, "registry", type(exc).__name__)
+            if key not in self._version_warnings:
+                self._version_warnings.add(key)
+                logger.warning("Cannot inspect judge serving version for %s: %s; continuing",
+                               model, type(exc).__name__)
+
     async def judge(self, request: Request) -> JSONResponse:
         try:
             judge_request = JudgeRequest.from_json(await request.json())
         except ValueError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
 
+        await self._warn_serving_version(judge_request.model)
+        attempts: list[dict[str, Any]] = []
         try:
             # Each synchronous workflow gets its own worker, with no shared
             # request queue. Rubric batching remains internal to the workflow.
@@ -180,13 +233,20 @@ class JudgeServer:
                     judge_request,
                     config=self.config,
                     executor=executor,
+                    **({"runtime": self.runtime} if self.runtime is not None else {}),
+                    **({"attempts": attempts} if judge_request.include_judge_trace else {}),
                 )
             finally:
                 executor.shutdown(wait=False, cancel_futures=True)
+            if judge_request.include_judge_trace:
+                result["judge_trace"] = {"version": 1, "attempts": attempts}
             return JSONResponse(result)
         except Exception as exc:
             logger.exception("Judge request failed for model=%s", judge_request.model)
-            return JSONResponse({"error": str(exc), "status": "failed"}, status_code=502)
+            payload = {"error": str(exc), "status": "failed"}
+            if judge_request.include_judge_trace:
+                payload["judge_trace"] = {"version": 1, "attempts": attempts}
+            return JSONResponse(payload, status_code=502)
 
     async def health(self, request: Request) -> JSONResponse:
         return JSONResponse(
@@ -230,7 +290,7 @@ class JudgeServer:
 
 
 def _parse_tools(tools: str) -> tuple[str, ...]:
-    return tuple(tool.strip() for tool in tools.split(",") if tool.strip())
+    return tuple(tool.strip() for tool in (tools.split(",") if isinstance(tools, str) else tools) if tool.strip())
 
 
 def _config_from_environment() -> JudgeServerConfig:
