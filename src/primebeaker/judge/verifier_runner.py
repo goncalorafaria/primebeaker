@@ -6,6 +6,9 @@ import asyncio
 import json
 import logging
 import uuid
+import threading
+from dataclasses import dataclass
+from pathlib import Path
 from concurrent.futures import Executor
 from typing import Any, Awaitable, Callable
 
@@ -171,6 +174,20 @@ def parse_grouped_judgments_tool_call(message: Any) -> dict[str, Any]:
         raise RuntimeError("grouped judge tool arguments must be a JSON object")
     if not isinstance(payload, dict):
         raise RuntimeError("grouped judge tool arguments must be a JSON object")
+    # Some models JSON-encode the judgments array inside the tool arguments.
+    # Normalize that representation, then retain the normal per-item checks.
+    raw_judgments = payload.get("judgments")
+    if isinstance(raw_judgments, str):
+        try:
+            decoded_judgments = json.loads(raw_judgments)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                "grouped judge judgments string is not valid JSON"
+            ) from exc
+        if not isinstance(decoded_judgments, list):
+            raise RuntimeError("grouped judge judgments string must decode to a list")
+        payload = {**payload, "judgments": decoded_judgments}
+        logger.warning("Normalized JSON-encoded judgments list in grouped judge response")
     return payload
 
 
@@ -437,7 +454,8 @@ def _partition_complete_judgments(
         rubric = final_row.rubric
         label = rubric.label
         normalized_label = label.strip().casefold() if isinstance(label, str) else ""
-        if normalized_label not in BINARY_RUBRIC_SCORES:
+        if (normalized_label not in BINARY_RUBRIC_SCORES
+                or not isinstance(rubric.feedback, str) or not rubric.feedback.strip()):
             metadata = getattr(rubric, "workflow_metadata", {}) or {}
             failures[rubric_index] = (
                 "judge produced an unfinished judgment: "
@@ -481,9 +499,13 @@ async def collect_judgments_with_retries(
     run_rows: Callable[[list[Any]], Awaitable[list[dict[str, Any]]]],
     *,
     max_retries: int,
+    max_failed_rubric_fraction: float = 0.0,
     evaluation_timeout: float | None = None,
+    attempts: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Retry only unfinished rubric rows while retaining completed judgments."""
+    if not 0 <= max_failed_rubric_fraction < 1:
+        raise ValueError("max_failed_rubric_fraction must be in [0, 1)")
     if evaluation_timeout is not None:
         if evaluation_timeout <= 0:
             raise ValueError("evaluation_timeout must be positive")
@@ -493,7 +515,9 @@ async def collect_judgments_with_retries(
                     rows,
                     run_rows,
                     max_retries=max_retries,
+                    max_failed_rubric_fraction=max_failed_rubric_fraction,
                     evaluation_timeout=None,
+                    attempts=attempts,
                 )
         except TimeoutError as exc:
             raise RuntimeError(
@@ -518,7 +542,20 @@ async def collect_judgments_with_retries(
     for attempt in range(total_attempts):
         selected_indices = sorted(pending_indices)
         selected_rows = [rows_by_index[index] for index in selected_indices]
-        results = await run_rows(selected_rows)
+        entry = {"attempt": attempt + 1, "rubric_indices": selected_indices, "judgments": []}
+        if attempts is not None:
+            attempts.append(entry)
+        try:
+            results = await run_rows(selected_rows)
+        except BaseException as exc:
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+            raise
+        if attempts is not None:
+            entry["judgments"] = [
+                {"rubric_index": result["final_row"].rubric_index,
+                 "trace": result["final_row"].rubric.to_dict()}
+                for result in results if result.get("final_row") is not None
+            ]
         attempt_complete, attempt_failures = _partition_complete_judgments(
             results, expected_indices=set(selected_indices)
         )
@@ -536,6 +573,11 @@ async def collect_judgments_with_retries(
                 sorted(pending_indices),
             )
 
+    if complete and len(pending_indices) / len(rows) <= max_failed_rubric_fraction:
+        logger.warning("Accepting partial judgments: completed=%d failed=%d total=%d",
+                       len(complete), len(pending_indices), len(rows))
+        return [complete[index] for index in sorted(complete)]
+
     details = "; ".join(
         last_failures.get(index, f"rubric_index={index}: unknown failure")
         for index in sorted(pending_indices)
@@ -552,6 +594,7 @@ async def run_grouped_rubric_judge(
     *,
     model_server: str,
     profile: Any,
+    attempts: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Request one forced function call covering all rubrics in ``record``."""
     if profile.tools or profile.max_turns != 1 or profile.max_tool_calls != 0:
@@ -582,9 +625,14 @@ async def run_grouped_rubric_judge(
                     "function": {"name": GROUPED_JUDGMENTS_TOOL_NAME},
                 },
                 extra_body={
-                    "chat_template_kwargs": {"enable_thinking": False}
+                    "chat_template_kwargs": {"enable_thinking": profile.enable_thinking}
                 },
             )
+            if attempts is not None:
+                attempts.append({
+                    "attempt": attempt + 1, "rubric_indices": rubric_indices,
+                    "messages": messages, "response": response.model_dump(mode="json"),
+                })
             if not response.choices:
                 raise RuntimeError("grouped judge returned no choices")
             choice = response.choices[0]
@@ -633,11 +681,127 @@ async def run_grouped_rubric_judge(
         )
 
 
+@dataclass(frozen=True)
+class PreparedJudgeHarness:
+    profile: Any
+    prompt_template: dict[str, Any]
+    verifier: Any
+    workflow_class: Any
+    tools: Any
+    bundled_submit_mode: bool
+    pengin_mode: bool
+    submit_mode: bool
+
+
+def prepare_judge_harness(profile: Any) -> PreparedJudgeHarness:
+    """Construct static harness configuration; rollout state lives in each State."""
+    bundled_submit_mode = profile.rubric_mode == "articulated_submit"
+    pengin_mode = profile.rubric_mode == "pengin_submit"
+    submit_mode = bundled_submit_mode or pengin_mode
+    workflow_class = ToolUseWorkflow
+    environment_id = DEFAULT_ENVIRONMENT_ID
+    if submit_mode:
+        from jtc.common.workflows.verifier_submit_tool_use_workflow import (
+            ARTICULATED_ENVIRONMENT_ID, SubmitToolUseWorkflow,
+        )
+        workflow_class = SubmitToolUseWorkflow
+        environment_id = ARTICULATED_ENVIRONMENT_ID
+        if bundled_submit_mode and ("submit" not in profile.tools or "terminal" not in profile.tools):
+            raise ValueError("articulated_submit requires terminal and submit tools")
+        if pengin_mode:
+            from primebeaker.judge.pengin_harness import PenginToolUseWorkflow
+
+            workflow_class = PenginToolUseWorkflow
+            if set(profile.tools) != {"webterminal", "submit"}:
+                raise ValueError("pengin_submit requires webterminal and submit backends")
+            if not profile.local_search_model_path:
+                raise ValueError("pengin_submit requires a local-search corpus service")
+
+    backend_tools = normalize_tools(profile.tools)
+    prompt_template = load_prompt_template(profile.prompt_template_path)
+    if pengin_mode:
+        from primebeaker.judge.pengin_harness import validate_pengin_template
+
+        validate_pengin_template(profile.prompt_template_path)
+    terminal_truncation = profile.terminal_truncation
+    if terminal_truncation is None and submit_mode:
+        terminal_truncation = 2000
+    if pengin_mode and terminal_truncation != 2000:
+        raise ValueError("pengin_submit requires 2,000-character tool truncation")
+    tool_config = (
+        {name: {"truncation": terminal_truncation} for name in ("terminal", "webterminal")}
+        if terminal_truncation is not None else {}
+    )
+    tool_clients = build_tool_clients(
+        tools=backend_tools,
+        server_url=profile.tool_server_url,
+        local_search_model_path=profile.local_search_model_path,
+        tool_config=tool_config,
+    )
+    tools, tool_clients = bind_advertised_tools(
+        backend_tools=backend_tools,
+        tool_clients=tool_clients,
+        tool_defs=prompt_template.get("tools"),
+    )
+    verifier = build_verifier_environment(
+        environment_id,
+        tool_clients=tool_clients.tools,
+        tools=tools,
+        tool_defs=prompt_template.get("tools"),
+        max_tool_calls=profile.max_tool_calls if tools else 0,
+        max_turns=profile.max_turns if tools else 1,
+        timeout_seconds=profile.rollout_timeout,
+        score_rollouts=False,
+    )
+    if pengin_mode:
+        from primebeaker.judge.pengin_harness import configure_pengin_verifier
+
+        configure_pengin_verifier(verifier, prompt_template["tools"])
+    return PreparedJudgeHarness(profile, prompt_template, verifier, workflow_class,
+                                tools, bundled_submit_mode, pengin_mode, submit_mode)
+
+
+class JudgeRuntime:
+    """One worker's Pengin harnesses. No workflow, model client or episode state is cached.
+
+    Profiles are a startup snapshot: restart workers to apply profile changes.
+    A lock makes concurrent cold requests build each model exactly once.
+    """
+    def __init__(self, config: Any):
+        self.config = config
+        self._prepared: dict[str, PreparedJudgeHarness] = {}
+        self._lock = threading.Lock()
+
+    def get(self, model: str) -> PreparedJudgeHarness:
+        with self._lock:
+            if model not in self._prepared:
+                profile = load_model_profile(model, self.config)
+                if profile.rubric_mode != "pengin_submit":
+                    raise ValueError("Preloaded JudgeAPI currently supports pengin_submit only")
+                self._prepared[model] = prepare_judge_harness(profile)
+            return self._prepared[model]
+
+    def get_preloaded(self, model: str) -> PreparedJudgeHarness:
+        # No I/O or environment construction on a live request's event loop.
+        try:
+            return self._prepared[model]
+        except KeyError:
+            raise ValueError(f"Model {model!r} was not preloaded; restart the worker after profile changes") from None
+
+    def warm(self) -> None:
+        for path in sorted(Path(self.config.model_profiles_dir).glob("*.json")):
+            payload = json.loads(path.read_text())
+            if payload.get("rubric_mode") == "pengin_submit":
+                self.get(payload["model"])
+
+
 async def run_verifier_tool_judge(
     request: Any,
     *,
     config: Any,
     executor: Executor | None = None,
+    runtime: JudgeRuntime | None = None,
+    attempts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Run the verifier tool-use workflow entirely in memory.
 
@@ -648,7 +812,8 @@ async def run_verifier_tool_judge(
     # The local LiteRegistry gateway discovers and selects model replicas.
     model_server = config.model_gateway_url
 
-    profile = load_model_profile(request.model, config)
+    prepared = runtime.get_preloaded(request.model) if runtime else None
+    profile = prepared.profile if prepared else load_model_profile(request.model, config)
     record = build_judge_record(request)
     if profile.rubric_mode == "grouped_rubrics":
         judgments = await run_grouped_rubric_judge(
@@ -656,6 +821,7 @@ async def run_verifier_tool_judge(
             request,
             model_server=model_server,
             profile=profile,
+            **({"attempts": attempts} if attempts is not None else {}),
         )
         return {
             "record_id": record.id,
@@ -665,36 +831,22 @@ async def run_verifier_tool_judge(
             "judgments": judgments,
         }
 
-    backend_tools = normalize_tools(profile.tools)
-    prompt_template = load_prompt_template(profile.prompt_template_path)
-    tool_clients = build_tool_clients(
-        tools=backend_tools,
-        server_url=profile.tool_server_url,
-        local_search_model_path=profile.local_search_model_path,
-    )
-    tools, tool_clients = bind_advertised_tools(
-        backend_tools=backend_tools,
-        tool_clients=tool_clients,
-        tool_defs=prompt_template.get("tools"),
-    )
+    prepared = prepared or prepare_judge_harness(profile)
+    prompt_template = prepared.prompt_template
+    verifier = prepared.verifier
+    workflow_class = prepared.workflow_class
+    tools = prepared.tools
+    bundled_submit_mode = prepared.bundled_submit_mode
+    pengin_mode = prepared.pengin_mode
+    submit_mode = prepared.submit_mode
     rollout_client = build_rollout_client(
         api_base_url=model_server,
         api_key=None,
         timeout=profile.timeout,
         max_retries=profile.max_retries,
-        connect_timeout=min(5.0, profile.timeout),
+        connect_timeout=min(30.0 if pengin_mode else 5.0, profile.timeout),
     )
-    verifier = build_verifier_environment(
-        DEFAULT_ENVIRONMENT_ID,
-        tool_clients=tool_clients.tools,
-        tools=tools,
-        tool_defs=prompt_template.get("tools"),
-        max_tool_calls=profile.max_tool_calls if tools else 0,
-        max_turns=profile.max_turns if tools else 1,
-        timeout_seconds=profile.rollout_timeout,
-        score_rollouts=False,
-    )
-    workflow = ToolUseWorkflow(
+    workflow = workflow_class(
         prompt_chat_template_spec=prompt_template,
         verifier=verifier,
         rollout_client=rollout_client,
@@ -703,6 +855,7 @@ async def run_verifier_tool_judge(
             "temperature": profile.temperature,
             "max_tokens": profile.max_tokens,
             "tool_choice": "auto" if tools else "none",
+            **({"extra_body": {"chat_template_kwargs": {"enable_thinking": True}}} if submit_mode else {}),
         },
         batch_size=len(request.rubrics),
         stream_output_jsonl_path=None,
@@ -718,11 +871,20 @@ async def run_verifier_tool_judge(
         keep_empty_outputs=True,
     )
     async def run_rows(selected_rows: list[Any]) -> list[dict[str, Any]]:
-        frozen_rows = tuple(selected_rows)
+        if bundled_submit_mode:
+            from primebeaker.judge.submit_harness import bundle_rows
+            frozen_rows = (bundle_rows(selected_rows),)
+        else:
+            frozen_rows = tuple(selected_rows)
         raw_results = await asyncio.get_running_loop().run_in_executor(
             executor,
             lambda: list(workflow(workflow_inputs_from_rows(frozen_rows))),
         )
+        if bundled_submit_mode:
+            from primebeaker.judge.submit_harness import expand_submissions
+            return expand_submissions(raw_results, selected_rows)
+        if pengin_mode:
+            return raw_results
         return build_workflow_results(
             rows=list(frozen_rows),
             code_results=raw_results,
@@ -734,9 +896,13 @@ async def run_verifier_tool_judge(
         rows,
         run_rows,
         max_retries=profile.rubric_max_retries,
+        max_failed_rubric_fraction=profile.max_failed_rubric_fraction,
         evaluation_timeout=profile.evaluation_timeout,
+        attempts=attempts,
     )
+    completed_indices = {j["rubric_index"] for j in judgments}
     return {
+        "failed_rubric_indices": sorted(set(range(len(rows))) - completed_indices),
         "record_id": record.id,
         "model": request.model,
         "profile": str(profile.source_path),

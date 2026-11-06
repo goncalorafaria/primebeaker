@@ -1,0 +1,187 @@
+# Fresh Qwen3.5-4B policy with Qwen3.5-35B-A3B grouped-rubric judge.
+max_steps = 800
+output_dir = "__OUTPUT_DIR__"
+clean = false
+
+[run]
+name = "__RUN_NAME__"
+
+
+# IcePop (ratio band 0.2..5.0), token-mean aggregation.
+[trainer]
+score_centering_token_chunk_size = 128
+
+[trainer.loss]
+type = "icepop"
+score_centering = true
+score_centering_estimator = "mc32"
+ratio_low = 0.2
+ratio_high = 5.0
+aggregation = "token_mean"
+
+[trainer.model]
+fused_lm_head_token_chunk_size = "disabled"
+name = "Qwen/Qwen3.5-4B"
+seq_len = 131072
+optimization_dtype = "bfloat16"
+reduce_dtype = "bfloat16"
+attn = "flash_attention_2"
+impl = "custom"
+fsdp_cpu_offload = false
+optim_cpu_offload = false
+
+[trainer.optim]
+lr = 4e-6
+max_norm = 1.0
+weight_decay = 0.0
+betas1 = 0.95
+betas2 = 0.95
+
+[monitors.wandb]
+project = "rubrichub-judge"
+entity = "__WANDB_ENTITY__"
+name = "__RUN_NAME__"
+tags = ["rubrichub", "medical-science", "fresh", "instruct", "moe35b-judge", "judge-context128k", "judge-output64k", "judge-no-thinking", "judge-tp4-ep", "uniform16", "sign-only", "icepop", "lr4e-6", "bf16-weights-reduction", "mc32", "lag32", "fp8-kv", "fp8-block-inference"]
+
+[orchestrator]
+batch_size = 256
+group_size = 8
+seq_len = 65536
+max_off_policy_steps = 32
+
+[orchestrator.concurrency]
+max_inflight = 1024
+
+[orchestrator.model]
+name = "Qwen/Qwen3.5-4B"
+
+[orchestrator.train]
+
+[orchestrator.train.sampling]
+score_centering_samples = 32
+max_completion_tokens = 57344
+temperature = 1.0
+# No truncation (top_p 1, no top-k): truncated sampling turns on vLLM sampling-mask capture.
+top_p = 1.0
+
+[orchestrator.train.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.train.source]]
+shuffle = true
+name = "rubrichub-signed-penalties-train"
+
+[orchestrator.train.source.env.taskset]
+id = "primebeaker-rubrichub-judge"
+dataset = "__TRAIN_DATASET__"
+split = "train"
+
+[orchestrator.train.source.env.taskset.task]
+judge_server_url = "http://127.0.0.1:1213/judge"
+judge_model_path = "__JUDGE_MODEL__"
+judge_service_model_path = "__JUDGE_SERVICE__"
+judge_timeout = 7500
+judge_max_retries = 1
+max_rubrics = 16
+rubric_scoring = "sign_only"
+rubric_sampling = "uniform"
+rubric_sample_seed = 73352
+non_termination_penalty = -0.2
+invalid_output_penalty = -0.2
+orphan_think_close_penalty = -0.2
+
+[orchestrator.train.source.env.agent]
+max_turns = 1
+
+[orchestrator.train.source.env.agent.harness]
+id = "null"
+
+[orchestrator.train.source.env.agent.runtime]
+type = "subprocess"
+
+[orchestrator.eval]
+interval = 50
+
+[orchestrator.eval.sampling]
+temperature = 0.5
+max_completion_tokens = 57344
+
+[orchestrator.eval.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.eval.source]]
+name = "mixed-science-medical-256"
+num_examples = 256
+group_size = 1
+
+[orchestrator.eval.source.env.taskset]
+id = "primebeaker-mc-accuracy"
+dataset = "__EVAL_DATASET__"
+split = "validation"
+
+[orchestrator.eval.source.env.agent]
+max_turns = 1
+
+[orchestrator.eval.source.env.agent.harness]
+id = "null"
+
+[orchestrator.eval.source.env.agent.runtime]
+type = "subprocess"
+
+[orchestrator.renderer]
+name = "qwen3.5"
+enable_thinking = true
+
+[inference.server]
+host = "0.0.0.0"
+port = 8000
+
+[inference.env_vars]
+VLLM_USE_V2_MODEL_RUNNER = "1"
+VLLM_USE_COMPACT_LOGPROBS = "1"
+VLLM_SCORE_CENTERING_MC32 = "1"
+VLLM_PRIME_COMPACT_LOGPROBS = "0"
+VLLM_PRIME_FLASHINFER_SAMPLER_HEAD = "0"
+VLLM_HTTP_TIMEOUT_KEEP_ALIVE = "75"
+VLLM_ATTENTION_BACKEND = "FLASH_ATTN"
+VLLM_USE_TRITON_FLASH_ATTN = "1"
+
+[inference.vllm]
+quantization = "fp8_per_block"
+kv_cache_dtype = "fp8"
+logprobs_mode = "processed_logprobs"
+max_logprobs = 32
+model = "Qwen/Qwen3.5-4B"
+trust_remote_code = true
+max_model_len = 65536
+tool_call_parser = "qwen3_coder"
+reasoning_parser = "qwen3"
+dtype = "bfloat16"
+gpu_memory_utilization = 0.9
+api_server_count = 6
+enable_prefix_caching = true
+tensor_parallel_size = 1
+data_parallel_size = 6
+data_parallel_size_local = 6
+language_model_only = true
+
+[inference.deployment]
+type = "single_node"
+gpus_per_node = 8
+
+[deployment]
+type = "single_node"
+gpus_per_node = 8
+num_train_gpus = 2
+num_infer_gpus = 6
+
+[weight_broadcast]
+type = "nccl"
+port = 29651
+
+[ckpt]
+interval = 25
+
+[log]
+level = "info"
+

@@ -1,4 +1,9 @@
-# Tiny training examples
+# Training examples
+
+For the full medical/science policy RL setup with MoE, Qwen9B batched, or
+Pengin9B feedback, see [medical-science-rl](medical-science-rl). It includes the
+actual CUDA/judge images, mounted-runtime requirements, full Base/Instruct TOMLs,
+profiles, and prepare/submit/resume commands.
 
 For a live Podman terminal-agent setup, see
 [podman-terminal](podman-terminal). It includes single-node and multi-node RL

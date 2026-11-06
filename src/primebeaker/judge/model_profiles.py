@@ -26,6 +26,9 @@ class ModelProfile:
     tool_server_url: str
     local_search_model_path: str | None
     temperature: float
+    max_failed_rubric_fraction: float = 0.0
+    enable_thinking: bool = False
+    terminal_truncation: int | None = None
 
 
 def _require_number(payload: dict[str, Any], key: str, default: float) -> float:
@@ -107,11 +110,25 @@ def load_model_profile(model: str, config: Any) -> ModelProfile:
     if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
         raise ValueError("profile field 'temperature' must be a number")
     rubric_mode = payload.get("rubric_mode", "per_rubric")
-    if rubric_mode not in {"per_rubric", "grouped_rubrics"}:
+    if rubric_mode not in {"per_rubric", "grouped_rubrics", "articulated_submit", "pengin_submit"}:
         raise ValueError(
             "profile field 'rubric_mode' must be 'per_rubric' or "
-            "'grouped_rubrics'"
+            "'grouped_rubrics', 'articulated_submit' or 'pengin_submit'"
         )
+
+    terminal_truncation = payload.get("terminal_truncation")
+    if terminal_truncation is not None:
+        terminal_truncation = _require_int(
+            payload, "terminal_truncation", 2000, minimum=1
+        )
+
+    enable_thinking = payload.get('enable_thinking', False)
+    if not isinstance(enable_thinking, bool):
+        raise ValueError("profile field 'enable_thinking' must be a boolean")
+
+    tolerance = payload.get("max_failed_rubric_fraction", 0.0)
+    if isinstance(tolerance, bool) or not isinstance(tolerance, (int, float)) or not 0 <= tolerance < 1:
+        raise ValueError("max_failed_rubric_fraction must be in [0, 1)")
 
     return ModelProfile(
         model=model,
@@ -141,4 +158,7 @@ def load_model_profile(model: str, config: Any) -> ModelProfile:
         tool_server_url=tool_server_url,
         local_search_model_path=local_search_model_path,
         temperature=float(temperature),
+        max_failed_rubric_fraction=float(tolerance),
+        enable_thinking=enable_thinking,
+        terminal_truncation=terminal_truncation,
     )

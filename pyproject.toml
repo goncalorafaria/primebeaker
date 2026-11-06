@@ -11,7 +11,7 @@ requires-python = "~=3.12.0"
 dependencies = ["fire>=0.7.1", "pydantic>=2.7", "literegistry-tool-client>=0.1.0,<0.2"]
 
 [project.optional-dependencies]
-judge = ["primebeaker[runtime]", "jtc-core[evals,harness]==0.3.0", "openai", "starlette"]
+judge = ["primebeaker[runtime]", "jtc-core[evals,harness]==0.3.0", "openai", "starlette", "packaging"]
 evaluation = ["jtc-core[evals,harness]==0.3.0"]
 watcher = ["fastapi", "jtc-core==0.3.0", "PyYAML>=6.0", "uvicorn", "wandb"]
 dashboards = ["wandb"]

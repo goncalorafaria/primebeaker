@@ -463,3 +463,7 @@ primebeaker dashboards serve --config=./dashboard.json --port=8791
 ```
 
 See [the example manifest](examples/dashboards/rubric-judging.json), [deployment instructions](examples/dashboards/README.md), and [shared architecture/API](src/primebeaker/dashboards/README.md). Metrics and W&B collection can run in separate CPU workers while the browser serves their shared snapshots.
+
+### Medical/science rubric RL examples
+
+See [the complete medical/science examples](examples/medical-science-rl/README.md) for Base and Instruct policies with original Qwen3.5-35B-A3B MoE, Qwen3.5-9B grouped rubrics, or Pengin9B tool-based feedback. The examples record the actual worker images and mounted runtime, include full MC32/BF16/FP8 TOMLs and judge prompt profiles, and provide explicit preparation, Beaker submission and step400-resume commands.

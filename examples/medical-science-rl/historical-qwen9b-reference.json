@@ -1,0 +1,19 @@
+{
+  "source_run": "rh-qwen3-4b-elaborate-answer-uniform8-qwen35-9b-batch-20261005",
+  "policy": "Qwen/Qwen3-4B-Base",
+  "learning_rate": 1e-06,
+  "trainer_precision": "float32",
+  "gradient_reduction": "float32",
+  "max_off_policy_steps": 4,
+  "score_centering": false,
+  "deployment": {
+    "type": "single_node",
+    "gpus_per_node": 8,
+    "num_train_gpus": 2,
+    "num_infer_gpus": 6
+  },
+  "initial_output_budget": 8192,
+  "historical_judge_context": 32768,
+  "example_judge_context": 131072,
+  "note": "The runnable Qwen9B variant uses the current MC32 policy recipe and a larger judge context; it does not silently claim to reproduce the old FP32/lr1e-6/overflow-affected comparison."
+}
