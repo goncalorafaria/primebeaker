@@ -27,11 +27,18 @@ class TrainingProgress:
         if directory is None:
             return result
         root = Path(directory)
-        identity = (run_id, str(root))
+        logs = root / "logs"
+        attempts = [p for p in logs.glob("attempt_*")
+                    if p.is_dir() and p.name.removeprefix("attempt_").isdigit()]
+        active = max(attempts, key=lambda p: int(p.name.removeprefix("attempt_"))) if attempts else logs
+        result["active_attempt"] = active.name if attempts else None
+        # A resume can restart below the previous attempt's high-water mark.
+        # Cache completion only within the active attempt, never across resumes.
+        identity = (run_id, str(root), str(active))
         if identity in self.completed:
             result.update(self.completed[identity])
         candidates = []
-        for path in (root / "logs").glob("**/*.log"):
+        for path in active.glob("**/*.log"):
             if not any(part.startswith(("trainer", "orchestrator")) for part in path.parts):
                 continue
             try:
@@ -77,5 +84,10 @@ class TrainingProgress:
                         self.timings[identity] = {"timing_seconds": {k.removeprefix("time/"): v for k,v in row.items() if k.startswith("time/")}, "timing_step": row.get("step"), "timing_timestamp": row.get("time"), "timing_source": str(path)}
             except OSError:
                 continue
-        result.update(self.timings.get(identity, {}))
+        timing = self.timings.get(identity, {})
+        completed = result.get("completed_optimizer_step")
+        # Historical timing rows may remain in the shared metrics file while a
+        # resumed trainer is still starting. Do not present them as current.
+        if completed is not None and timing.get("timing_step") is not None and timing["timing_step"] <= completed:
+            result.update(timing)
         return result
