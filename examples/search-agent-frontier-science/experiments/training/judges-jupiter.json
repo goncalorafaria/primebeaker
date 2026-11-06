@@ -1,0 +1,243 @@
+{
+  "version": "v2",
+  "description": "Pengin9B RL400 Jupiter urgent; four TP4 engines (16 GPUs); triggered on resume450 trainer start",
+  "tasks": [
+    {
+      "name": "pengin-resume450-jupiter-1",
+      "image": {
+        "beaker": "01M3WPHYKDAZ4533VCDZGNZGHZ"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/judge/jupiter-tp4-resume400/start.sh"
+      ],
+      "envVars": [
+        {
+          "name": "HEAD_REGISTRY",
+          "value": "sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/search-agent-repr/services/runtime:/opt/judge-serving"
+        },
+        {
+          "name": "JUDGE_START_LOCAL_SERVICES",
+          "value": "0"
+        },
+        {
+          "name": "JUDGE_API_PROCESSES",
+          "value": "2"
+        },
+        {
+          "name": "JUDGE_PORT_BASE",
+          "value": "26400"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "hostNetworking": true,
+      "context": {
+        "priority": "urgent",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "propagatePreemption": false,
+      "propagateFailure": false
+    },
+    {
+      "name": "pengin-resume450-jupiter-2",
+      "image": {
+        "beaker": "01M3WPHYKDAZ4533VCDZGNZGHZ"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/judge/jupiter-tp4-resume400/start.sh"
+      ],
+      "envVars": [
+        {
+          "name": "HEAD_REGISTRY",
+          "value": "sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/search-agent-repr/services/runtime:/opt/judge-serving"
+        },
+        {
+          "name": "JUDGE_START_LOCAL_SERVICES",
+          "value": "0"
+        },
+        {
+          "name": "JUDGE_API_PROCESSES",
+          "value": "2"
+        },
+        {
+          "name": "JUDGE_PORT_BASE",
+          "value": "26410"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "hostNetworking": true,
+      "context": {
+        "priority": "urgent",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "propagatePreemption": false,
+      "propagateFailure": false
+    },
+    {
+      "name": "pengin-resume450-jupiter-3",
+      "image": {
+        "beaker": "01M3WPHYKDAZ4533VCDZGNZGHZ"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/judge/jupiter-tp4-resume400/start.sh"
+      ],
+      "envVars": [
+        {
+          "name": "HEAD_REGISTRY",
+          "value": "sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/search-agent-repr/services/runtime:/opt/judge-serving"
+        },
+        {
+          "name": "JUDGE_START_LOCAL_SERVICES",
+          "value": "0"
+        },
+        {
+          "name": "JUDGE_API_PROCESSES",
+          "value": "2"
+        },
+        {
+          "name": "JUDGE_PORT_BASE",
+          "value": "26420"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "hostNetworking": true,
+      "context": {
+        "priority": "urgent",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "propagatePreemption": false,
+      "propagateFailure": false
+    },
+    {
+      "name": "pengin-resume450-jupiter-4",
+      "image": {
+        "beaker": "01M3WPHYKDAZ4533VCDZGNZGHZ"
+      },
+      "command": [
+        "bash",
+        "/weka/gfaria/search-agent-repr/judge/jupiter-tp4-resume400/start.sh"
+      ],
+      "envVars": [
+        {
+          "name": "HEAD_REGISTRY",
+          "value": "sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3"
+        },
+        {
+          "name": "PYTHONPATH",
+          "value": "/weka/gfaria/search-agent-repr/services/runtime:/opt/judge-serving"
+        },
+        {
+          "name": "JUDGE_START_LOCAL_SERVICES",
+          "value": "0"
+        },
+        {
+          "name": "JUDGE_API_PROCESSES",
+          "value": "2"
+        },
+        {
+          "name": "JUDGE_PORT_BASE",
+          "value": "26430"
+        }
+      ],
+      "datasets": [
+        {
+          "mountPath": "/weka",
+          "source": {
+            "weka": "oe-adapt-default"
+          }
+        }
+      ],
+      "result": {
+        "path": "/tmp/beaker-result"
+      },
+      "resources": {
+        "gpuCount": 4
+      },
+      "hostNetworking": true,
+      "context": {
+        "priority": "urgent",
+        "minRuntime": "4h",
+        "autoResume": false
+      },
+      "constraints": {
+        "cluster": [
+          "ai2/jupiter"
+        ]
+      },
+      "propagatePreemption": false,
+      "propagateFailure": false
+    }
+  ],
+  "budget": "ai2/oe-omai"
+}

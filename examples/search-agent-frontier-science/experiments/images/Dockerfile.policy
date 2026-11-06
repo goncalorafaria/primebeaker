@@ -1,0 +1,5 @@
+# Same CUDA/OS base used by the submitted policy and BF16 evaluation jobs.
+# Runtime Python, CUDA extensions, models and data remain mounted under /weka.
+FROM nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04
+COPY bundle /opt/search-agent-experiments
+LABEL org.primebeaker.recipe="search-agent-frontier-science/experiments"

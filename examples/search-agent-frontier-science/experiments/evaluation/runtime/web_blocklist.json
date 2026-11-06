@@ -1,0 +1,7 @@
+{
+  "domains": ["huggingface.co", "hf.co"],
+  "url_prefixes": [],
+  "github_repos": [],
+  "hf_datasets": [],
+  "arxiv_ids": []
+}

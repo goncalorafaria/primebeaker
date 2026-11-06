@@ -1,0 +1,20 @@
+[experiment]
+kind = "evaluation"
+name = "frontier430-bf16-five-seeds"
+workspace = "ai2/oe-agents"
+cluster = "ai2/jupiter"
+priority = "urgent"
+min_runtime = "4h"
+step = 430
+seeds = [1, 2, 3, 4, 5]
+model = "/weka/gfaria/search-agent-repr/evals/frontier-science-step430-256k-bf16-web-v2-saturn-three-seeds/hf-checkpoint"
+checkpoint = "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume400-to450-20261103/search-agent-mc32-resume400-to450-20261103/checkpoints/step_430"
+# "default" removes X-Return-Format/X-Respond-With on page fetches.
+jina_format = "markdown"
+
+[sampling]
+temperature = 1.0
+max_tokens = 100000
+max_total_completion_tokens = 262144
+context_window = 262144
+batch_size = 512

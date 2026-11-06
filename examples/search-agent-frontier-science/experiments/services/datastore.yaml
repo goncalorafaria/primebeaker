@@ -1,0 +1,9 @@
+# Merge these paths into the service deployment configuration.
+service:
+  local_search_service_name: localsearch:frontier-science
+  local_search_corpus_jsonl: /weka/gfaria/search-agent-repr/datastore/corpus-offset-index.sqlite
+  local_search_index_dir: /weka/gfaria/search-agent-repr/datastore/bm25_legacy
+rl:
+  environment:
+    LOCAL_SEARCH_SUPPORT_DIR: /weka/gfaria/search-agent-repr/lucene_files
+# Retrieval evaluation reference: /weka/gfaria/search-agent-repr/data/validation-retrieval.jsonl

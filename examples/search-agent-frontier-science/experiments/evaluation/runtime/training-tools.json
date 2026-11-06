@@ -1,0 +1,38 @@
+[
+  {
+    "type": "function",
+    "name": "search",
+    "description": "Search the science corpus for candidate sources.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "title": "Query",
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "searchArguments"
+    }
+  },
+  {
+    "type": "function",
+    "name": "webterminal",
+    "description": "Read and inspect source documents with a browser-aware terminal.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "title": "Command",
+          "type": "string"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "webterminalArguments"
+    }
+  }
+]

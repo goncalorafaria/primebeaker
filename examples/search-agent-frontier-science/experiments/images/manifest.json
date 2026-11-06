@@ -1,0 +1,7 @@
+{
+  "policy_and_eval": {"docker": "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04"},
+  "pengin_judge": {"beaker": "01M3WPHYKDAZ4533VCDZGNZGHZ"},
+  "grading_terminal_redis": {"beaker": "01M27G8Y678BBF5MWXX6R12BSB"},
+  "corpus_search": {"beaker": "01M27G8XCZ3TMKS6Q0QJWS0CG9"},
+  "runtime_contract": "Mounted Weka runtimes; image rebuilds preserve the verified bases. These are not standalone images."
+}

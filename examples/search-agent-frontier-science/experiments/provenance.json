@@ -1,0 +1,222 @@
+[
+  {
+    "source": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/train.toml",
+    "file": "training/train.toml",
+    "sha256": "2be1625d2012bffd2514b72ea354b43b96bef6f3e9a73aac13f412a779d05bed"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/policy.beaker.json",
+    "file": "training/policy.beaker.json",
+    "sha256": "35596a4d0015f916de362b990d80fe9574ddb0d116d219086fdf6b7d6e06971c"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/start-policy.sh",
+    "file": "training/start-policy.sh",
+    "sha256": "edcbf3f0a486c1e248e9a6a2c2b3fa556f66b0926d0fb8225c12bf7121c1885c"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/multinode_rl_role.sh",
+    "file": "training/multinode_rl_role.sh",
+    "sha256": "55b77a54786c982c5513628796b42114465caf9fbc12058d43a9b4920818d4e8"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/watch-judges.py",
+    "file": "training/watch-judges.py",
+    "sha256": "cdbb150d5adf3bd6178cfa02bbed535ed4008a02dfd6b6321d30b7adb8a5143d"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/judges-jupiter.json",
+    "file": "training/judges-jupiter.json",
+    "sha256": "50cb8f66177771c4b5baea897714ba4ad734c33bc236c276880f963c23de20b9"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/policy-resume450-to600-bf16-cp4-12infer-20261105/test_resume.py",
+    "file": "training/test_resume.py",
+    "sha256": "376e43625ecb40a697e9f70363b11c9880a7c736544a17979f436ea7efcc2393"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/start.sh",
+    "file": "evaluation/start.sh",
+    "sha256": "0786598832593444df3e28b22a7303068b0ec66413c80d24800764d03558862c"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/eval.beaker.json",
+    "file": "evaluation/eval.beaker.json",
+    "sha256": "21e6cf52f21d77d28450bf330fb31e167c66e91fe5a973812b2112aabdf0f369"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/grade.py",
+    "file": "evaluation/grade.py",
+    "sha256": "7675b3926b1abbad80a879dc527f2680082f9f108d49fc708ce2dc5e745e15e7"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/grade.sh",
+    "file": "evaluation/grade.sh",
+    "sha256": "6769e47e90496cfa84c93d59ba8afb4db7e635ee6023078127af2a6cfb235882"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/grade.beaker.json",
+    "file": "evaluation/grade.beaker.json",
+    "sha256": "1273d37428b311e8cd8863a558d0a7128256c452f7516bbda72a95c244ff7c35"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured430-five-seeds-jupiter-20261105/watch.py",
+    "file": "evaluation/watch.py",
+    "sha256": "6cc2adfd8867a8d173786b66feb20d7164c032ce3b99c26cd05891ce22bf8309"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/test_long_challenge.py",
+    "file": "evaluation/runtime/test_long_challenge.py",
+    "sha256": "41e23342b84b7a5483cfc340700cb7f04028c811eca17c92867bd21c12c05f2d"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/web_quality.py",
+    "file": "evaluation/runtime/web_quality.py",
+    "sha256": "97d77d90da74373431c8315eed593452bf5baf9764fd7a0add8076c9d8c76d31"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/preflight.py",
+    "file": "evaluation/runtime/preflight.py",
+    "sha256": "aa5e137fe625aefce7d2ac231ce8dcc1be0bee5b185478c4dffa31a5bf5424e9"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/training-tools.json",
+    "file": "evaluation/runtime/training-tools.json",
+    "sha256": "0292091f9dad07ed74163cf7dd08091cbf7aa5881b34902b373470c13304ff83"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/eval_web_policy.py",
+    "file": "evaluation/runtime/eval_web_policy.py",
+    "sha256": "3056d0659173f07739d8a026d342e1607076658cfdd2245fc36cfe2d6730c8fe"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/export.py",
+    "file": "evaluation/runtime/export.py",
+    "sha256": "8ae85797b328b61f30a1207ae61332d8178ff819f9b7a1ae8ce001aaa4d467a7"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/serper_resolve.py",
+    "file": "evaluation/runtime/serper_resolve.py",
+    "sha256": "35168c8ede8c71e5e637e22635446c8aaf4335d0c27b2be9dc4b046713ea3c01"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/fetch_recovery.py",
+    "file": "evaluation/runtime/fetch_recovery.py",
+    "sha256": "9959a549da87a10ffa4e3fb51edb85a17c52de235ecc01dbc6de3efc6c13b16e"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/eval_web_access.py",
+    "file": "evaluation/runtime/eval_web_access.py",
+    "sha256": "b3d4f3dea9532ab0ccb0ff9ed3726bb82243b0ced28552c21457c49eb95bbfea"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/settings.json",
+    "file": "evaluation/runtime/settings.json",
+    "sha256": "1d3098ae4d6a2fcf6931b5f1831b73d0073f6314bbdeb1c7bbaa07e1c1534b0c"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/test_fetch_recovery.py",
+    "file": "evaluation/runtime/test_fetch_recovery.py",
+    "sha256": "377a9acfd358b034f2f1382bc690d79403f6d34fb62367a2ed2590c6673adce3"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/web_metrics.py",
+    "file": "evaluation/runtime/web_metrics.py",
+    "sha256": "e207b6470f5faacf8cbee903d9f89bf7ba309b928c9747f931615be4c2f81144"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/web_blocklist.json",
+    "file": "evaluation/runtime/web_blocklist.json",
+    "sha256": "13e5cdf4062b08c2425b4e5c6a6b588127076c7f0960d3ac73782a5db2b9dc19"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/questions.jsonl",
+    "file": "evaluation/runtime/questions.jsonl",
+    "sha256": "6b9c81f71a6ce980cf0b677930afbbf80485b8298aa211ecaf1e06f3aaf2c01a"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/test_web_cache_backend.py",
+    "file": "evaluation/runtime/test_web_cache_backend.py",
+    "sha256": "6a2629c60b5269a4c2f285cda1d52c03523de647020b904905d0d923dd9570a4"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/eval_search_server.py",
+    "file": "evaluation/runtime/eval_search_server.py",
+    "sha256": "ee0527aee61c47fed86b902edf438812486b83b14ba1d4a978d954226c197b0a"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/web_cache.py",
+    "file": "evaluation/runtime/web_cache.py",
+    "sha256": "0af326e1f1efa9ae8c36546486e543177356679ce1fa9ef82edfa21b2f6eabc5"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/gateway_fetch_recovery.py",
+    "file": "evaluation/runtime/gateway_fetch_recovery.py",
+    "sha256": "54b70ba30dcb8cd77f49d37471e88476e8e2151de8722835c37a16f095d22346"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/evals/frontier-structured350-420-training-tools-seed1-20261104/runtime/run.py",
+    "file": "evaluation/runtime/run.py",
+    "sha256": "c2539bbbbfb79de4a602cb96c1cd0268ce2a3ac1e025d3469fa517e5e2802913"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/examples/frontier-science-live-search/research_grader_reference.py",
+    "file": "evaluation/research_grader_reference.py",
+    "sha256": "d70a0595b8fd74b2ffe210dae20b42d914ec6bb699c948b9278000c8d119f7b1"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/examples/frontier-science-live-search/research-original.jsonl",
+    "file": "evaluation/research-original.jsonl",
+    "sha256": "ebe6649e070cf04a973df04833409b1cb86276c80808f819bf471d2f98219b3c"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/judge/jupiter-tp4-resume400/start.sh",
+    "file": "judge/start-jupiter-tp4.sh",
+    "sha256": "752c694b1a83a43b9094120b751f2cd4583f0ac82f11807c19fe2d3e7e4412b6"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/judge/serve-registered-vllm.py",
+    "file": "judge/serve-registered-vllm.py",
+    "sha256": "44d01da7e971f5a641dd0bfed14fdabf6fbdd1319f733fa9b891ec8d603f8105"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/judge/watch-load.py",
+    "file": "judge/watch-load.py",
+    "sha256": "17392ac3e3ba6ac2e8233441468bcd512916d99c3aa18d2bcc7ca3bf49c0144f"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/judge/watch-load-inference.py",
+    "file": "judge/watch-load-inference.py",
+    "sha256": "db5d3124f3038613ea722eec470ff4e8f00ad7102ca40892be3d7a0d06674fdf"
+  },
+  {
+    "source": "/weka/gfaria/search-agent-repr/config/judge-profiles/pengin9b_rl400.json",
+    "file": "judge/profiles/pengin9b_rl400.json",
+    "sha256": "bb3f554de02f37c719a6b1afd7a5e2318074c002bbbaa7fb2c66af490f65587a"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/src/primebeaker/resources/judge_templates/pengin-hint-free-submit.json",
+    "file": "judge/templates/pengin-hint-free-submit.json",
+    "sha256": "c4c138d6bd91b2800a53eeaaee7f454078f410fa3156733133aeedae891dcf30"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/examples/search-agent-frontier-science/pengin-judge-mc128/services.yaml",
+    "file": "services/services.yaml",
+    "sha256": "36a773537fee4147c8a892b2f71dffb22960ddeb840ec5d12d1c3214e643aed9"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/examples/search-agent-frontier-science/pengin-judge-mc128/services.beaker.json",
+    "file": "services/services.beaker.json",
+    "sha256": "6162cf967cfc4f3326e6b826ee21ba6bcd5439a278611fd3dcde9b43ab0e75f5"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/examples/search-agent-frontier-science/pengin-judge-mc128/datastore.yaml",
+    "file": "services/datastore.yaml",
+    "sha256": "7643cff9f0ffdbf4b241bc0fcce28d6a1457867344a8b28ffab4a3fae1f9d2eb"
+  },
+  {
+    "source": "/weka/gfaria/primebeaker/examples/search-agent-frontier-science/pengin-judge-mc128/check_ready.py",
+    "file": "services/check_ready.py",
+    "sha256": "a06c1c2deba6ec1efab64f5348f02607952dafdd192d2894985d259e4fa21c8b"
+  }
+]

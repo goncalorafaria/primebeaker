@@ -1,0 +1,22 @@
+{
+  "registry": "head+sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3",
+  "search_model_path": "search:frontier-web-v2",
+  "max_tool_calls": 150,
+  "max_turns": 151,
+  "terminal_truncation": 10000,
+  "visit_max_content_length": 64000,
+  "temperature": 1.0,
+  "max_tokens": 100000,
+  "max_total_completion_tokens": 262144,
+  "rollout_timeout": 7200,
+  "batch_size": 512,
+  "template_path": "/weka/gfaria/primebeaker/src/primebeaker/environments/frontier_science/resources/science/prompt.json",
+  "tool_timeout": 900,
+  "tool_attempts": 2,
+  "context_window": 262144,
+  "web_blocked_domains": [
+    "huggingface.co",
+    "hf.co"
+  ],
+  "reject_bot_challenge": true
+}

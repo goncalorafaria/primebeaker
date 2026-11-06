@@ -1,0 +1,5 @@
+# Pull immutable Beaker 01M3WPHYKDAZ4533VCDZGNZGHZ as search-judge-base first.
+ARG BASE_IMAGE=search-judge-base:local
+FROM ${BASE_IMAGE}
+COPY bundle /opt/search-agent-experiments
+RUN test -x /app/.venv/bin/python && test -x /app/judge-venv/bin/python

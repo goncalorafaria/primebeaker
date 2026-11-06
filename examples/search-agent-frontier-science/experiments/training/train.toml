@@ -1,0 +1,226 @@
+# Based on primebeaker/examples/podman-terminal/multinode-rl.toml.
+# Native Frontier Science: one CP4 trainer group + three TP4 inference engines.
+# Uses the GPU-verified MC32 runtime prepared for this recipe.
+# score_centering_samples is the probe count; group_size is rollout group size.
+max_steps = 600
+seq_len = 131072
+output_dir = "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume450-to600-bf16-20261105"
+clean = false
+
+# Per-node gateway timeout must cover the tool-using judge evaluation.
+[env_vars]
+JUDGE_TIMEOUT = "6600"
+
+[run]
+name = "search-agent-mc32-resume450-to600-bf16-20261105"
+
+[trainer]
+score_centering_token_chunk_size = 128
+
+[trainer.loss]
+type = "ipo"
+aggregation = "group_token_mean"
+kl_tau = 0.0
+score_centering = true
+score_centering_estimator = "mc32"
+
+[trainer.model]
+name = "Qwen/Qwen3.5-4B"
+cp = 4
+dp_replicate = 1
+cp_style = "ulysses"
+optimization_dtype = "bfloat16"
+reduce_dtype = "bfloat16"
+fused_lm_head_token_chunk_size = "disabled"
+fsdp_cpu_offload = false
+optim_cpu_offload = false
+attn = "flash_attention_2"
+impl = "auto"
+
+[trainer.model.ac]
+freq = 1
+
+[trainer.optim]
+type = "adamw"
+lr = 1e-6
+max_norm = 1.0
+weight_decay = 0.0
+eps = 1e-12
+betas1 = 0.95
+betas2 = 0.95
+
+[monitors.wandb]
+project = "primebeaker-examples"
+name = "search-agent-mc32-resume450-to600-bf16-20261105"
+tags = ["primebeaker", "frontier-science", "search-agent", "multinode", "bf16", "mc32", "fp8"]
+
+[orchestrator]
+batch_size = 256
+group_size = 32
+max_off_policy_steps = 32
+
+[orchestrator.model]
+name = "Qwen/Qwen3.5-4B"
+
+[orchestrator.train.sampling]
+max_completion_tokens = 100000
+temperature = 1.0
+top_p = 1.0
+score_centering_samples = 32
+
+[orchestrator.train.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.train.source]]
+name = "frontier-science-webterminal-train"
+
+[orchestrator.train.source.env.taskset]
+id = "primebeaker-search-agent"
+dataset = "/weka/gfaria/search-agent-repr/data/train.jsonl"
+split = "train"
+
+[orchestrator.train.source.env.taskset.task]
+judge_server_url = "http://127.0.0.1:1212/judge"
+judge_model_path = "/weka/gfaria/launches/pengin-9b-rl-benchmarks-100step-20261025/9b/step_400/hf-checkpoint"
+judge_service_model_path = "judge:search-agent-pengin9b-rl400"
+judge_timeout = 6600
+judge_max_retries = 1
+max_failed_rubric_fraction = 0.2
+tool_stderr_penalty = 0.05
+missing_final_answer_penalty = -1.0
+
+[orchestrator.train.source.env.taskset.task.tools]
+search_server_url = "http://127.0.0.1:1212/search"
+terminal_server_url = "http://127.0.0.1:1212/terminal"
+local_search_model_path = "localsearch:frontier-science"
+terminal_truncation = 10000
+webterminal_max_content_length = 64000
+num_results = 10
+max_tool_calls = 150
+
+[orchestrator.train.source.env.agent]
+max_turns = 151
+max_output_tokens = 131072
+
+[orchestrator.train.source.env.agent.harness]
+id = "null"
+
+[orchestrator.train.source.env.agent.runtime]
+type = "subprocess"
+
+
+[orchestrator.eval]
+interval = 25
+
+[orchestrator.eval.sampling]
+max_completion_tokens = 100000
+temperature = 1.0
+
+[orchestrator.eval.sampling.extra_body.chat_template_kwargs]
+enable_thinking = true
+
+[[orchestrator.eval.source]]
+name = "frontier-science-webterminal-validation"
+num_examples = 200
+group_size = 1
+
+[orchestrator.eval.source.env.taskset]
+id = "primebeaker-search-agent"
+dataset = "/weka/gfaria/search-agent-repr/data/validation.jsonl"
+split = "validation"
+
+[orchestrator.eval.source.env.taskset.task]
+judge_server_url = "http://127.0.0.1:1212/judge"
+judge_model_path = "/weka/gfaria/launches/pengin-9b-rl-benchmarks-100step-20261025/9b/step_400/hf-checkpoint"
+judge_service_model_path = "judge:search-agent-pengin9b-rl400"
+judge_timeout = 6600
+judge_max_retries = 1
+max_failed_rubric_fraction = 0.2
+tool_stderr_penalty = 0.0
+missing_final_answer_penalty = 0.0
+
+[orchestrator.eval.source.env.taskset.task.tools]
+search_server_url = "http://127.0.0.1:1212/search"
+terminal_server_url = "http://127.0.0.1:1212/terminal"
+local_search_model_path = "localsearch:frontier-science"
+terminal_truncation = 10000
+webterminal_max_content_length = 64000
+num_results = 10
+max_tool_calls = 150
+
+[orchestrator.eval.source.env.agent]
+max_turns = 151
+max_output_tokens = 131072
+
+[orchestrator.eval.source.env.agent.harness]
+id = "null"
+
+[orchestrator.eval.source.env.agent.runtime]
+type = "subprocess"
+
+
+[orchestrator.renderer]
+name = "qwen3.5"
+enable_thinking = true
+thinking_retention = "tool_cycle"
+
+[inference.server]
+host = "0.0.0.0"
+port = 8000
+
+[inference.env_vars]
+VLLM_ATTENTION_BACKEND = "FLASH_ATTN"
+VLLM_USE_TRITON_FLASH_ATTN = "1"
+# Independent 32-draw sampler; use the matching MC32 runtime.
+VLLM_SCORE_CENTERING_MC32 = "1"
+VLLM_USE_V2_MODEL_RUNNER = "1"
+
+[inference.vllm]
+model = "Qwen/Qwen3.5-4B"
+trust_remote_code = true
+max_model_len = 131072
+tool_call_parser = "qwen3_coder"
+reasoning_parser = "qwen3"
+# BF16 activations with online FP8 weight quantization on the inference node.
+dtype = "bfloat16"
+quantization = "fp8_per_block"
+# Next rerun only: FP8 attention KV cache; BF16 activations unchanged.
+kv_cache_dtype = "fp8"
+gpu_memory_utilization = 0.9
+# External-LB metadata counts engines; launcher sets 4 API processes per engine.
+api_server_count = 3
+enable_prefix_caching = true
+tensor_parallel_size = 4
+data_parallel_size = 3
+language_model_only = true
+max_num_batched_tokens = 131072
+logprobs_mode = "processed_logprobs"
+max_logprobs = 32
+
+[deployment]
+type = "multi_node"
+gpus_per_node = 4
+num_train_nodes = 1
+num_infer_nodes = 3
+num_infer_replicas = 1
+
+[weight_broadcast]
+type = "nccl"
+
+[ckpt]
+interval = 10
+keep_last = 4
+keep_interval = 10
+
+[log]
+level = "info"
+
+# Four trainer GPUs in one CP4 group.
+[primebeaker]
+trainer_gpus = 4
+
+[resume]
+dir = "/weka/gfaria/search-agent-repr/outputs/search-agent-mc32-resume400-to450-20261103/search-agent-mc32-resume400-to450-20261103/checkpoints/step_450"
+
+[orchestrator.concurrency]
+max_inflight = 512
