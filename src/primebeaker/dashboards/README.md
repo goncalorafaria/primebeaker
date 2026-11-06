@@ -107,3 +107,5 @@ The rubric view plots active requests, interval mean request latency, and engine
 Add `baselines` entries containing `id`, `label`, `wandb_run` (`entity/project/run`), and `curves_file` (a saved W&B curve export). Optional `color` applies consistently across plots. Exports use the same `{curves: {metric_name: {points: [{step, value}]}}}` format as live runs and must contain their matching `wandb_run` or original W&B `url`. Baselines appear only in training plots, never as live jobs or inference servers. Their status is labeled saved baseline.
 
 `curve_max_step` restricts displayed training points without altering history; `curve_caveat` adds a visible comparison note. Run-level `color` controls live training series too. Saved baseline files are read by the HTTP server, so they do not require extra W&B polling.
+
+Set `curve_smoothing_steps` to an integer greater than one (for example, `10`) to draw a trailing step-window mean over faint raw W&B values. Early windows use the available points, and missing values reset the window. Raw histories and inference time-series plots are unchanged. The default is `1` (no smoothing).
