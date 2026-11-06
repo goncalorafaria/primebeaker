@@ -6,7 +6,9 @@ export const duration = value => value == null ? '—' : value >= 60 ? (value / 
 export const palette = ['#56B4E9', '#E69F00', '#009E73', '#CC79A7', '#F0E442', '#D55E00'];
 
 export async function getJSON(url) {
-  const response = await fetch(url + '?t=' + Date.now(), {cache: 'no-store'});
+  const endpoint = new URL(url.replace(/^\//, ''), new URL('../', import.meta.url));
+  endpoint.searchParams.set('t', Date.now());
+  const response = await fetch(endpoint, {cache: 'no-store'});
   if (!response.ok) {
     const message = await response.json().catch(() => ({}));
     throw Error(message.error || ('HTTP ' + response.status));
