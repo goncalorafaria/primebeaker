@@ -1,0 +1,55 @@
+{
+  "trainer": {
+    "image": "docker://nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04",
+    "python": "/weka/gfaria/experiments/reverse-text-online-20261013/venv/bin/python",
+    "pythonpath": [
+      "/weka/gfaria/search-agent-repr/mc128-runtime/extra-deps",
+      "/weka/gfaria/prime-rl-mc32/experiments/mc32/runtime",
+      "/weka/gfaria/vllm-mc32",
+      "/weka/gfaria/launches/pengin-9b-holmes-rl-8gpu-20261025/modules",
+      "/weka/gfaria/launches/quokka9b-verifiable-score-centering-lag16-20261013/runtime/prime-rl/packages/prime-rl-configs/src",
+      "/weka/gfaria/launches/quokka9b-verifiable-score-centering-lag16-20261013/runtime/prime-rl/deps/pydantic-config/src",
+      "/weka/gfaria/launches/quokka9b-verifiable-score-centering-lag16-20261013/runtime/tool-client",
+      "/weka/gfaria/search-agent-repr/prepared-runtime",
+      "/weka/gfaria/launches/pengin-hint-free-qwen35-9b-judge-eval-20261022/runtime"
+    ]
+  },
+  "judge": {
+    "image": "beaker://01M3WPHYKDAZ4533VCDZGNZGHZ",
+    "python": "/app/judge-venv/bin/python",
+    "vllm": "0.29.0",
+    "pythonpath": [
+      "/opt/judge-serving",
+      "/weka/gfaria/launches/pengin-hint-free-qwen35-9b-judge-eval-20261022/runtime"
+    ]
+  },
+  "literegistry_runtime": "/weka/gfaria/launches/rl-tools-lr1057-headcache-20261016/runtime",
+  "source_runs": [
+    "rh-base-moe35b-medscience-uniform8-8k-mc32-bf16-fp8-20261104",
+    "rh-base-moe35b-medscience-resume400-to800-32k-20261105",
+    "rh-instruct-moe35b-medscience-fresh-64kjudge-tp4-20261104",
+    "rh-qwen3-4b-elaborate-answer-uniform8-qwen35-9b-batch-20261005"
+  ],
+  "notes": [
+    "The trainer image is a CUDA base only: all listed mounted dependencies are required.",
+    "The mounted ML runtime is an operational snapshot, not a claim that the generic image contains MC32.",
+    "Pengin step400 is an adaptation of the deployed judge to the same medical/science task; not a previously completed medical experiment."
+  ],
+  "source_provenance": {
+    "vllm-mc32": {
+      "checkout": "/weka/gfaria/vllm-mc32",
+      "revision": "792b0dd0e49d48b6e289652e3d7f42d10b4dee39",
+      "tracked_worktree_changes_present": true
+    },
+    "prime-rl-mc32": {
+      "checkout": "/weka/gfaria/prime-rl-mc32",
+      "revision": "cffc3c56bc11b4d0f6420a4624f1297cc8b64d39",
+      "tracked_worktree_changes_present": true
+    },
+    "jtc": {
+      "checkout": "/weka/gfaria/jtc",
+      "revision": "4aee7db74b735a926c5c7052c35ec90e3c3d4b4c",
+      "tracked_worktree_changes_present": true
+    }
+  }
+}

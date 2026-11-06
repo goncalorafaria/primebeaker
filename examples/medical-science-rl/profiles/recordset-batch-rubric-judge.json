@@ -1,0 +1,19 @@
+{
+  "name": "recordset_batch_rubric_judge",
+  "description": "Evaluate one candidate output against every indexed rubric in a JRecordSet and submit one structured function call containing every judgment.",
+  "input_variables": [
+    "inputs",
+    "output",
+    "indexed_rubrics"
+  ],
+  "chat_template": [
+    {
+      "role": "system",
+      "content": "You are an impartial evaluator. Judge the candidate output independently against every supplied rubric. Follow each rubric's allowed labels exactly. Finish with exactly one submit_grouped_judgments function call. Do not provide a text answer."
+    },
+    {
+      "role": "user",
+      "content": "# TASK INPUT\n<inputs>\n{inputs}\n</inputs>\n\n# CANDIDATE OUTPUT\n<output>\n{output}\n</output>\n\n# INDEXED RUBRICS\nEach rubric has a stable numeric `rubric_id`. Evaluate every listed rubric exactly once. The allowed labels are shown in each rubric; do not invent labels.\n<rubrics>\n{indexed_rubrics}\n</rubrics>\n\n# JUDGING RULES\n1. Judge only the candidate output against the task input and that rubric's criterion.\n2. Do not let success or failure on one rubric affect another.\n3. Submit one judgment for every rubric_id, with no duplicates or omissions.\n4. `feedback` must briefly justify the label using concrete evidence from the candidate output, or state what required content is missing.\n5. Preserve `rubric_id` exactly as supplied; it is the key used to map judgments back to rubric definitions.\n\n# REQUIRED FINAL TOOL CALL\nFinish by calling `submit_grouped_judgments` exactly once. Put every listed rubric_id in its `judgments` argument exactly once. Do not answer in text or emit JSON outside the tool call."
+    }
+  ]
+}
