@@ -1,0 +1,4 @@
+Find candidate web sources for a query.
+
+Use this for discovery. The returned titles and snippets help select
+candidate URLs, but must not be treated as verified source evidence.

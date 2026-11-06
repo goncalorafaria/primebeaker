@@ -10,7 +10,7 @@
   "max_total_completion_tokens": 262144,
   "rollout_timeout": 7200,
   "batch_size": 512,
-  "template_path": "/weka/gfaria/primebeaker/src/primebeaker/environments/frontier_science/resources/science/prompt.json",
+  "template_path": "assets/prompt.json",
   "tool_timeout": 900,
   "tool_attempts": 2,
   "context_window": 262144,

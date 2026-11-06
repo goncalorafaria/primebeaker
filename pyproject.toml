@@ -59,6 +59,8 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 primebeaker = [
+    "environments/frontier_science/resources/science/*.json",
+    "environments/frontier_science/resources/science/*.txt",
     "multinode_*_role.sh",
     "images/*.json",
     "images/*.md",

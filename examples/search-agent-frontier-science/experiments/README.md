@@ -23,6 +23,12 @@ is context parallelism, not tensor parallelism. The 12 inference GPUs are TP4.
 The resumed optimizer retains its history; the packaged trainer override resets
 the loaded checkpoint LR to the requested LR. It also checks BF16 parameter dtype.
 
+The original prompt and tool descriptions are versioned under
+`src/primebeaker/environments/frontier_science/resources/science/` and included
+in Python distributions. Preparation copies all four files into `runtime/assets`
+and points the generated settings there; direct harness use resolves them from
+the checkout.
+
 The benchmark uses 59 **reformatted** research questions, training-matched
 `search(query)` / `webterminal(command)` schemas, temperature 1, 262,144-token
 context and cumulative output budget, 100,000 tokens per completion, 150 tool

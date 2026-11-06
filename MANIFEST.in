@@ -5,3 +5,5 @@ recursive-include src/primebeaker/dashboards *.md *.html *.css *.js
 recursive-include examples/podman-terminal *.py *.sh
 recursive-include docs *.md
 recursive-include src/primebeaker/images/mc32 *.toml *.md
+
+recursive-include src/primebeaker/environments/frontier_science/resources/science *.json *.txt
