@@ -5,6 +5,7 @@ ulimit -n 65536
 export LD_LIBRARY_PATH="/weka/gfaria/search-agent-repr/judge/cuda13-compat/root/usr/local/cuda-13.0/compat:${LD_LIBRARY_PATH:-}"
 /app/.venv/bin/python -c 'import torch; torch.cuda.init(); print("CUDA preflight:", torch.version.cuda, torch.cuda.get_device_name(0), flush=True)' 
 ROOT=/weka/gfaria/search-agent-repr
+export JUDGE_PROFILES_DIR="$(cd "$(dirname "$0")" && pwd)/profiles"
 export PYTHONPATH="/weka/gfaria/primebeaker/src:/weka/gfaria/jtc${PYTHONPATH:+:$PYTHONPATH}"
 export HEAD_REGISTRY="${HEAD_REGISTRY:-sqlite:///weka/gfaria/search-agent-repr/registry/control.sqlite3}"
 # Keep discovery indirect so Redis can move without restarting clients.
@@ -24,11 +25,12 @@ from primebeaker.judge.judge_server import JudgeServerConfig
 from primebeaker.judge.model_profiles import load_model_profile
 from primebeaker.judge.pengin_harness import validate_pengin_template
 from literegistry_tool_client import WebTerminalExecutionClient
-import json
+import json, os
 root = Path('/weka/gfaria/search-agent-repr')
-payload = json.loads((root / 'config/judge-profiles/pengin9b_rl400.json').read_text())
+profiles = Path(os.environ['JUDGE_PROFILES_DIR'])
+payload = json.loads((profiles / 'pengin9b_rl400.json').read_text())
 profile = load_model_profile(payload['model'], JudgeServerConfig(
-    model_profiles_dir=str(root / 'config/judge-profiles')))
+    model_profiles_dir=str(profiles)))
 assert profile.rubric_mode == 'pengin_submit'
 assert set(profile.tools) == {'webterminal', 'submit'}
 assert profile.terminal_truncation == 2000
@@ -59,7 +61,7 @@ if [[ "${JUDGE_START_LOCAL_SERVICES:-1}" == "1" ]]; then
 "$JUDGE_PYTHON" -m uvicorn primebeaker.gateway:create_app --factory   --host 0.0.0.0 --port 1213 --workers 1 > "$LOG_DIR/gateway.log" 2>&1 &
 pids+=("$!")
 # The API and model share REGISTRY; train workers route /judge through their gateway.
-"$JUDGE_PYTHON" -m primebeaker.judge.judge_server --registry "$REGISTRY"   --port 8090 --model_path "$SERVICE" --model_gateway_url http://127.0.0.1:1213   --model_profiles_dir "$ROOT/config/judge-profiles" --workers 4   > "$LOG_DIR/api.log" 2>&1 &
+"$JUDGE_PYTHON" -m primebeaker.judge.judge_server --registry "$REGISTRY"   --port 8090 --model_path "$SERVICE" --model_gateway_url http://127.0.0.1:1213   --model_profiles_dir "$JUDGE_PROFILES_DIR" --workers 4   > "$LOG_DIR/api.log" 2>&1 &
 pids+=("$!")
 fi
 # Supervise every component. Readiness is checked by the run's service preflight.

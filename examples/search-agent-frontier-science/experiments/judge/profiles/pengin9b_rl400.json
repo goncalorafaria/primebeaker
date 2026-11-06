@@ -1,7 +1,7 @@
 {
   "model": "/weka/gfaria/launches/pengin-9b-rl-benchmarks-100step-20261025/9b/step_400/hf-checkpoint",
   "rubric_mode": "pengin_submit",
-  "prompt_template_path": "../judge-templates/pengin-hint-free-submit.json",
+  "prompt_template_path": "../templates/pengin-hint-free-submit.json",
   "max_turns": 65,
   "max_tool_calls": 64,
   "max_tokens": 100000,
@@ -18,5 +18,6 @@
   "local_search_model_path": "localsearch:frontier-science",
   "temperature": 1.0,
   "terminal_truncation": 2000,
-  "max_failed_rubric_fraction": 0.2
+  "max_failed_rubric_fraction": 0.2,
+  "enable_thinking": true
 }

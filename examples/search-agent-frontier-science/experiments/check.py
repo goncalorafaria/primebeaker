@@ -36,4 +36,16 @@ with tempfile.TemporaryDirectory(prefix='search-agent-example-') as temp:
    assert ns['Child']()._headers_for_request(SimpleNamespace(mode='url'))=={'Accept':'application/json'}
    assert ns['Child']()._headers_for_request(SimpleNamespace(mode='query'))['X-Return-Format']=='markdown'
   print('PASS',mode)
+# Load the packaged profile with the merged repository's actual profile loader.
+import importlib.util, types, hashlib
+profile_module=ROOT.parents[2]/'src/primebeaker/judge/model_profiles.py'
+spec=importlib.util.spec_from_file_location('example_merged_profiles',profile_module)
+module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
+profiles=ROOT/'judge/profiles';raw=json.loads((profiles/'pengin9b_rl400.json').read_text())
+profile=module.load_model_profile(raw['model'],types.SimpleNamespace(model_profiles_dir=str(profiles), **raw))
+assert profile.rubric_mode=='pengin_submit' and profile.enable_thinking
+assert profile.max_failed_rubric_fraction==0.2 and profile.terminal_truncation==2000
+assert Path(profile.prompt_template_path).is_file()
+assert hashlib.sha256(Path(profile.prompt_template_path).read_bytes()).hexdigest()=='c4c138d6bd91b2800a53eeaaee7f454078f410fa3156733133aeedae891dcf30'
+print('PASS merged Pengin profile contract')
 print('No jobs submitted.')

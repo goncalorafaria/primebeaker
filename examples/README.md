@@ -5,6 +5,11 @@ Pengin9B feedback, see [medical-science-rl](medical-science-rl). It includes the
 actual CUDA/judge images, mounted-runtime requirements, full Base/Instruct TOMLs,
 profiles, and prepare/submit/resume commands.
 
+For search-agent training resumes and five-seed Frontier Science evaluation, see
+[search-agent experiments](search-agent-frontier-science/experiments). This includes
+BF16/MC32 training, FP8 policy inference, a Jupiter Pengin trigger, image recipes,
+and the live Serper/Jina evaluation harness.
+
 For a live Podman terminal-agent setup, see
 [podman-terminal](podman-terminal). It includes single-node and multi-node RL
 TOMLs, tiny task JSONL, and a launchable LiteRegistry Podman service stack.
