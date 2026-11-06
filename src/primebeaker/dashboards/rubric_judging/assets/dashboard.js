@@ -123,6 +123,7 @@ async function start() {
   try {
     config = await getJSON('/api/config');
     el('title').textContent = config.title;
+    el('dashboard-links').innerHTML = (config.linked_dashboards || []).map(view => '<a href="' + escape(view.href) + '">' + escape(view.label) + '</a>').join(' · ');
     document.title = config.title;
     el('primary-label').textContent = config.runs[0].label;
     el('comparison-label').textContent = config.runs[1]?.label || 'Comparison policy';

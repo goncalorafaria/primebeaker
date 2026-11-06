@@ -13,7 +13,7 @@ from .views import get_view
 from .wandb import curve_matches_run
 
 
-def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 8791):
+def _view_context(config: DashboardConfig, prefix: str = ""):
     assets, _ = get_view(config.kind)
     common = files("primebeaker.dashboards").joinpath("assets")
     store = SnapshotStore(config.state_dir)
@@ -27,13 +27,39 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
     }
     snapshots = {"/api/snapshot": "latest.json", "/latest.json": "latest.json", "/api/curves": "curves.json", "/wandb.json": "curves.json"}
 
+    return dict(config=config, store=store, static=static, history_lock=history_lock, history_cache=history_cache, prefix=prefix)
+
+
+def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 8791):
+    primary = _view_context(config)
+    mounts = {}
+    for entry in config.data.get("dashboard_mounts", []):
+        prefix = entry["path"].rstrip("/")
+        if not prefix.startswith("/") or prefix == "" or prefix in mounts or ".." in prefix:
+            raise ValueError("Dashboard mount paths must be unique absolute URL paths")
+        mounts[prefix] = _view_context(DashboardConfig(config.resolve(entry["config"])), prefix)
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             route = self.path.split("?", 1)[0]
+            context = primary
+            for prefix in sorted(mounts, key=len, reverse=True):
+                if route == prefix or route.startswith(prefix + "/"):
+                    context = mounts[prefix]
+                    route = route[len(prefix):] or "/"
+                    break
+            config = context['config']
+            store, static = context['store'], context['static']
+            history_lock, history_cache = context['history_lock'], context['history_cache']
+            prefix = context['prefix']
+            snapshots = {"/api/snapshot": "latest.json", "/latest.json": "latest.json", "/api/curves": "curves.json", "/wandb.json": "curves.json"}
             try:
                 if route in static:
                     path, content_type = static[route]
                     body = path.read_bytes()
+                    if route == "/" and prefix:
+                        body = body.replace(b'="/assets/', ('="' + prefix + '/assets/').encode())
+                        body = body.replace(b'="/api/', ('="' + prefix + '/api/').encode())
                 elif route in snapshots:
                     content_type = "application/json"
                     data = store.read(snapshots[route])
@@ -73,6 +99,7 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                     body = json.dumps({"title": config.title, "kind": config.kind, "refresh_seconds": config.interval, "judge_label": config.judge.get("label", "Judge"),
                                        "runs": [{"id": r["id"], "label": r.get("label", r["id"]), "color": r.get('color')} for r in config.runs],
                                        "baselines": [{k: b.get(k) for k in ('id', 'label', 'color')} for b in config.data.get('baselines', [])],
+                                       "linked_dashboards": config.data.get("linked_dashboards", []),
                                        "curve_max_step": config.data.get('curve_max_step'),
                                        "curve_smoothing_steps": config.data.get('curve_smoothing_steps', 1),
                                        "curve_caveat": config.data.get('curve_caveat', '')}).encode()

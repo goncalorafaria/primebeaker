@@ -14,6 +14,7 @@
 </div>
 <button id="refresh">Refresh now</button>
 </header>
+<nav id="dashboard-links" aria-label="Judge experiment dashboards"></nav>
 <p id="freshness">Loading the latest snapshot…</p>
 <div class="error" id="error">
 </div>
@@ -76,7 +77,7 @@
 </div>
 </section>
 </div>
-<p class="muted">Source: W&B API, refreshed every minute. X axis uses the step as logged by each producer; trainer timing requires a forward/backward timing row, excluding orchestrator timing. Raw points, no smoothing or interpolation. Hover over a point for its value. A missing series means no recorded data, not zero.</p>
+<p class="muted">Source: W&B API, refreshed every minute. X axis uses the step as logged by each producer; trainer timing requires a forward/backward timing row, excluding orchestrator timing. Smoothing is shown in the curve status; faint points preserve raw values. Hover over a point for its value. A missing series means no recorded data, not zero.</p>
 <h2>Training steps</h2>
 <div class="table-wrap">
 <table>
