@@ -97,8 +97,8 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                     # Only public display metadata; the manifest may contain
                     # private credential environment-variable names and paths.
                     body = json.dumps({"title": config.title, "kind": config.kind, "refresh_seconds": config.interval, "judge_label": config.judge.get("label", "Judge"),
-                                       "runs": [{"id": r["id"], "label": r.get("label", r["id"]), "color": r.get('color')} for r in config.runs],
-                                       "baselines": [{k: b.get(k) for k in ('id', 'label', 'color')} for b in config.data.get('baselines', [])],
+                                       "runs": [{"id": r["id"], "label": r.get("label", r["id"]), "color": r.get('color'), "line_style": r.get("line_style", "solid")} for r in config.runs],
+                                       "baselines": [{k: b.get(k) for k in ('id', 'label', 'color', 'line_style')} for b in config.data.get('baselines', [])],
                                        "linked_dashboards": config.data.get("linked_dashboards", []),
                                        "curve_max_step": config.data.get('curve_max_step'),
                                        "curve_smoothing_steps": config.data.get('curve_smoothing_steps', 1),
