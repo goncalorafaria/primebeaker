@@ -1,7 +1,7 @@
 """Read saved benchmark summaries for optional dashboard result panels."""
 from __future__ import annotations
 
-from .store import read_json
+from .config import read_json
 
 
 def evaluation_results(config):
