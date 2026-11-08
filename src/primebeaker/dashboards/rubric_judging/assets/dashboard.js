@@ -123,6 +123,19 @@ async function servers() {
   } catch (error) { el('servers-status').textContent = 'Server history unavailable: ' + error.message; }
 }
 
+async function evaluations() {
+  try {
+    const data = await getJSON('/api/evaluations');
+    const root = el('evaluation-panels');
+    root.innerHTML = data.panels.map((panel, i) => '<section><h2>' + escape(panel.title) + '</h2><p class="muted">Luna score · % · solid Base / dashed Instruct</p><div class="legend" id="eval-legend-' + i + '"></div><div class="charts"><section class="chart"><div id="eval-plot-' + i + '"></div></section></div><p class="muted">' + escape(panel.caveat || '') + '</p><div class="table-wrap"><table><thead><tr><th>Judge / policy</th><th>Checkpoint</th><th>Luna score</th><th>Graded</th><th>Status</th></tr></thead><tbody>' + panel.series.flatMap(source => source.points.map(p => '<tr><td style="color:' + escape(source.color) + '">' + escape(source.label) + '</td><td>' + p.step + '</td><td>' + (p.score == null ? '—' : p.score.toFixed(2) + '%') + '</td><td>' + escape(p.graded == null ? '—' : p.graded + '/' + (p.expected || 1000)) + '</td><td>' + escape(p.state) + '</td></tr>')).join('') + '</tbody></table></div></section>').join('');
+    data.panels.forEach((panel, i) => {
+      const series = panel.series.map(s => ({name:s.label, color:s.color, lineStyle:s.line_style, points:s.points.filter(p => p.score != null).map(p => ({step:p.step,value:p.score}))}));
+      renderPlot(el('eval-plot-' + i), series, {label:'HealthBench Luna score (%)',xLabel:'Policy checkpoint'});
+      el('eval-legend-' + i).innerHTML = panel.series.map(s => '<span style="color:' + escape(s.color) + '"><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2"' + (s.line_style === 'dashed' ? ' stroke-dasharray="6 4"' : '') + '/></svg> ' + escape(s.label) + '</span>').join('');
+    });
+  } catch (error) { el('evaluation-panels').textContent = 'Evaluation results unavailable: ' + error.message; }
+}
+
 async function start() {
   try {
     config = await getJSON('/api/config');
@@ -133,13 +146,15 @@ async function start() {
     el('comparison-label').textContent = config.runs[1]?.label || 'Comparison policy';
     el('training-legend').innerHTML = [...config.runs, ...(config.baselines || [])].map((run, i) => '<span style="color:' + escape(run.color || palette[i % palette.length]) + '"><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2"' + (run.line_style === 'dashed' ? ' stroke-dasharray="6 4"' : '') + '/></svg> ' + escape(run.label) + '</span>').join('');
     el('curve-caveat').textContent = config.curve_caveat || '';
-    el('refresh').onclick = () => { update(); curves(); servers(); };
+    el('refresh').onclick = () => { update(); curves(); servers(); evaluations(); };
     await update();
     curves();
     servers();
+    evaluations();
     setInterval(update, 5000);
     setInterval(curves, 15000);
     setInterval(servers, 15000);
+    setInterval(evaluations, 15000);
     setInterval(freshness, 1000);
   } catch (error) { el('error').textContent = error.message; el('error').style.display = 'block'; }
 }

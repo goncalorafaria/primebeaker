@@ -85,6 +85,10 @@ def make_server(config: DashboardConfig, host: str = "127.0.0.1", port: int = 87
                                          'error': 'Saved baseline history unavailable or run identity mismatch'}
                             data.setdefault('runs', {})[baseline['id']] = curve
                     body = json.dumps(data, allow_nan=False).encode()
+                elif route == "/api/evaluations":
+                    from .evaluations import evaluation_results
+                    content_type = "application/json"
+                    body = json.dumps(evaluation_results(config), allow_nan=False).encode()
                 elif route == "/api/inference-history":
                     content_type = "application/json"
                     with history_lock:
