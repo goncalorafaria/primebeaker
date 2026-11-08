@@ -48,7 +48,7 @@ export function renderPlot(target, series, {label = 'Metric', scale = 1, xMode =
     const draw = (points, opacity, width, markers) => {
       let segment = [];
       const flush = () => {
-        if (segment.length > 1) svg += '<polyline fill="none" stroke="' + source.color + '" stroke-opacity="' + opacity + '" stroke-width="' + width + '" points="' + segment.map(p => px(p.x) + ',' + py(p.y)).join(' ') + '"/>';
+        if (segment.length > 1) svg += '<polyline fill="none"' + (source.lineStyle === 'dashed' ? ' stroke-dasharray="8 5"' : '') + ' stroke="' + source.color + '" stroke-opacity="' + opacity + '" stroke-width="' + width + '" points="' + segment.map(p => px(p.x) + ',' + py(p.y)).join(' ') + '"/>';
         segment = [];
       };
       for (const p of points) {

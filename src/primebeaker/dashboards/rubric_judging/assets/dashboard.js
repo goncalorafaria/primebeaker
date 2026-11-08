@@ -77,7 +77,7 @@ async function curves() {
     const baselineIds = new Set((config.baselines || []).map(run => run.id));
     for (const [kind, suffix, scale] of [['time_per_step', 'time', 60], ['reward_mean', 'reward', 1], ['total_tokens_mean', 'tokens', 1]]) {
       // SVG paints later series on top. Keep live runs above historical overlays.
-      const series = runs.map((run, i) => ({name: run.label, historical: baselineIds.has(run.id), color: run.color || palette[i % palette.length], points: (data.runs[run.id]?.curves?.[kind]?.points || [])
+      const series = runs.map((run, i) => ({name: run.label, lineStyle: run.line_style, historical: baselineIds.has(run.id), color: run.color || palette[i % palette.length], points: (data.runs[run.id]?.curves?.[kind]?.points || [])
         .filter(point => config.curve_max_step == null || point.step <= config.curve_max_step)}))
         .sort((a, b) => Number(b.historical) - Number(a.historical));
       renderPlot(el('plot-' + suffix), series, {label: kind, scale, smoothingSteps: config.curve_smoothing_steps || 1});
@@ -131,7 +131,7 @@ async function start() {
     document.title = config.title;
     el('primary-label').textContent = config.runs[0].label;
     el('comparison-label').textContent = config.runs[1]?.label || 'Comparison policy';
-    el('training-legend').innerHTML = [...config.runs, ...(config.baselines || [])].map((run, i) => '<span style="color:' + escape(run.color || palette[i % palette.length]) + '">' + escape(run.label) + '</span>').join('');
+    el('training-legend').innerHTML = [...config.runs, ...(config.baselines || [])].map((run, i) => '<span style="color:' + escape(run.color || palette[i % palette.length]) + '"><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2"' + (run.line_style === 'dashed' ? ' stroke-dasharray="6 4"' : '') + '/></svg> ' + escape(run.label) + '</span>').join('');
     el('curve-caveat').textContent = config.curve_caveat || '';
     el('refresh').onclick = () => { update(); curves(); servers(); };
     await update();
