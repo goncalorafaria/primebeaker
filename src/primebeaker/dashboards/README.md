@@ -117,3 +117,5 @@ Use `dashboard_mounts: [{"path": "/pengin", "config": "pengin-dashboard.json"}]`
 Both policy summary cards show their own rollout batch progress, inflight episode count, and buffered episode count. Missing counters are shown as unavailable rather than zero.
 
 Series may set `line_style` to `solid` (default) or `dashed`. Use a shared color for a judge and line style for policy family; legend samples reflect the style.
+
+Optional `evaluation_panels` provide `id`, `title`, `caveat`, and styled `series`. Each series has `points` with `step`, `summary_file`, and optional `status_file`, `lifecycle_file`, `submission_file`. The API reads summaries at request time; only complete fully graded scores enter the plot. Raw scores and pending states appear in the table.

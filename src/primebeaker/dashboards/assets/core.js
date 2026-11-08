@@ -16,7 +16,7 @@ export async function getJSON(url) {
   return response.json();
 }
 
-export function renderPlot(target, series, {label = 'Metric', scale = 1, xMode = 'step', zeroFloor = false, smoothingSteps = 1} = {}) {
+export function renderPlot(target, series, {label = 'Metric', scale = 1, xMode = 'step', zeroFloor = false, smoothingSteps = 1, xLabel: suppliedXLabel} = {}) {
   series = series.map((s, i) => ({...s, color: s.color || palette[i % palette.length], points: (s.points || [])
     .filter(p => Number.isFinite(p.step)).map(p => ({x: p.step, y: Number.isFinite(p.value) ? p.value / scale : null, raw: p.value}))}));
   const points = series.flatMap(s => s.points).filter(p => p.y !== null);
@@ -30,7 +30,7 @@ export function renderPlot(target, series, {label = 'Metric', scale = 1, xMode =
   const pad = (ymax - ymin) * .12 || Math.max(Math.abs(ymax) * .08, .1);
   ymin -= pad; ymax += pad;
   if (zeroFloor) ymin = 0;
-  const xLabel = xMode === 'time' ? 'Time (local)' : 'Training step (W&B)';
+  const xLabel = suppliedXLabel || (xMode === 'time' ? 'Time (local)' : 'Training step (W&B)');
   const xText = value => xMode === 'time' ? new Date(value).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : value;
   const w = 560, h = 310, left = 65, right = 16, top = 20, bottom = 48;
   const px = x => left + (x - xmin) / (xmax - xmin) * (w - left - right);
