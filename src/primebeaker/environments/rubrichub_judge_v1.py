@@ -28,17 +28,18 @@ import random
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import verifiers.v1 as vf
 from pydantic import Field
 
-from literegistry_tool_client import JudgeClient
+from primebeaker.judge.trace_client import TracedJudgeClient as JudgeClient
 from primebeaker.environments.signed_rubrics import (
     judge_criterion,
     nonzero_weight,
     signed_sample_indexes,
     weight_normalizer,
+    scoring_weight,
 )
 
 __all__ = [
@@ -296,8 +297,9 @@ def select_rubrics(
     max_rubrics: int,
     sample_seed: int,
     record_id: str,
+    rubric_sampling: str = "uniform",
 ) -> list[dict[str, Any]]:
-    """Select a reproducible uniform subset without process-global RNG state."""
+    """Select a reproducible subset without process-global RNG state."""
     if (
         isinstance(max_rubrics, bool)
         or not isinstance(max_rubrics, int)
@@ -306,17 +308,22 @@ def select_rubrics(
         raise ValueError("max_rubrics must be a positive integer")
     if isinstance(sample_seed, bool) or not isinstance(sample_seed, int):
         raise TypeError("rubric_sample_seed must be an integer")
+    if rubric_sampling not in {"uniform", "weighted"}:
+        raise ValueError("rubric_sampling must be uniform or weighted")
     normalized = [dict(rubric) for rubric in rubrics]
+    if rubric_sampling == "weighted":
+        for rubric in normalized:
+            nonzero_weight(rubric["weight"])
     if len(normalized) <= max_rubrics:
         return normalized
     seed_material = f"{sample_seed}\\0{record_id}".encode("utf-8")
     derived_seed = int.from_bytes(hashlib.sha256(seed_material).digest(), "big")
-    indexes = signed_sample_indexes(normalized, max_rubrics, random.Random(derived_seed))
+    indexes = signed_sample_indexes(normalized, max_rubrics, random.Random(derived_seed), sampling=rubric_sampling)
     return [normalized[index] for index in indexes]
 
 
 def _validated_judgments(
-    response: Any, selected: Sequence[Mapping[str, Any]]
+    response: Any, selected: Sequence[Mapping[str, Any]], *, rubric_scoring: str = "weighted"
 ) -> list[dict[str, Any]]:
     if not isinstance(response, Mapping):
         raise RuntimeError("judge response must be an object")
@@ -341,12 +348,14 @@ def _validated_judgments(
         if normalized_label not in {"pass", "fail"}:
             raise RuntimeError(f"unsupported judge label: {label!r}")
         selected_rubric = selected[request_index]
-        weight = float(selected_rubric["weight"])
+        original_weight = float(selected_rubric["weight"])
+        weight = scoring_weight(original_weight, mode=rubric_scoring)
         by_request_index[request_index] = {
             "request_index": request_index,
             "original_index": int(selected_rubric["original_index"]),
             "text": str(selected_rubric["text"]),
             "weight": weight,
+            "original_weight": original_weight,
             "label": normalized_label,
             "feedback": judgment.get("feedback"),
             "trace": judgment.get("trace"),
@@ -382,6 +391,8 @@ class RubricHubJudgeTaskConfig(vf.TaskConfig):
     judge_max_retries: int = 3
     max_rubrics: int = Field(8, ge=1)
     rubric_sample_seed: int = 0
+    rubric_sampling: Literal["uniform", "weighted"] = "uniform"
+    rubric_scoring: Literal["weighted", "sign_only"] = "weighted"
     non_termination_penalty: float = Field(-0.25, lt=0)
     invalid_output_penalty: float = Field(0.0, le=0)
     orphan_think_close_penalty: float = Field(-0.2, le=0)
@@ -428,7 +439,7 @@ class RubricHubJudgeTask(vf.Task[RubricHubJudgeData, RubricHubJudgeState, Rubric
         record_id, rubrics = _answer_payload(self.data.answer)
         cfg = self.config
         return record_id, select_rubrics(
-            rubrics, max_rubrics=cfg.max_rubrics, sample_seed=cfg.rubric_sample_seed, record_id=record_id
+            rubrics, max_rubrics=cfg.max_rubrics, sample_seed=cfg.rubric_sample_seed, record_id=record_id, rubric_sampling=cfg.rubric_sampling
         )
 
     @vf.metric
@@ -444,7 +455,11 @@ class RubricHubJudgeTask(vf.Task[RubricHubJudgeData, RubricHubJudgeState, Rubric
             invalid_error = None
         orphan = _has_orphan_think_close_tag(output_text) if output_text else False
         format_penalty = cfg.orphan_think_close_penalty if orphan else 0.0
-        audit: dict[str, Any] = {"source_record_id": record_id, "selected_rubrics": selected}
+        audit: dict[str, Any] = {"source_record_id": record_id, "selected_rubrics": selected, "rubric_scoring": cfg.rubric_scoring}
+        # State is deliberately excluded from Verifiers serialization. Info survives
+        # scoring failures and is saved in PrimeRL's ordinary rollout JSONL.
+        trace.info["judge"] = audit
+        trace.state.judge_audit = audit
         non_terminated = invalid = 0.0
         rubric_score = 0.0
 
@@ -463,20 +478,33 @@ class RubricHubJudgeTask(vf.Task[RubricHubJudgeData, RubricHubJudgeState, Rubric
             score = cfg.invalid_output_penalty
             audit.update(status="invalid_policy_output", error=invalid_error)
         else:
-            response = await _judge_client(cfg).verify_output(
-                input=_prompt_text(self.data.prompt),
-                output=output_text,
-                rubrics=[judge_criterion(rubric) for rubric in selected],
-                model=cfg.judge_model_path,
-                service_model_path=cfg.judge_service_model_path,
-            )
-            judgments = _validated_judgments(response, selected)
+            try:
+                response = await _judge_client(cfg).verify_output(
+                    input=_prompt_text(self.data.prompt),
+                    output=output_text,
+                    rubrics=[judge_criterion(rubric) for rubric in selected],
+                    model=cfg.judge_model_path,
+                    service_model_path=cfg.judge_service_model_path,
+                )
+                audit["http_attempts"] = response.get("judge_http_attempts", [])
+                audit["judge_response"] = {
+                    key: value for key, value in response.items()
+                    if key != "judge_http_attempts"
+                } if not audit["http_attempts"] else None
+                judgments = _validated_judgments(response, selected, rubric_scoring=cfg.rubric_scoring)
+            except Exception as exc:
+                audit.update(
+                    status="judge_failed", error=f"{type(exc).__name__}: {exc}",
+                    http_attempts=getattr(exc, "judge_attempts", audit.get("http_attempts", [])),
+                )
+                raise
             weight_sum = weight_normalizer(judgments)
             if not math.isfinite(weight_sum) or weight_sum <= 0:
                 raise RuntimeError("selected rubric weight sum must be positive")
             rubric_score = sum(float(item["weighted_pass"]) for item in judgments) / weight_sum
             score = rubric_score + format_penalty
             audit.update(
+                scoring_denominator=weight_sum,
                 status="judged",
                 judge_record_id=response.get("record_id"),
                 judge_profile=response.get("profile"),
