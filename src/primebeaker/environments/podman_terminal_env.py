@@ -20,11 +20,10 @@ from datasets import Dataset
 import verifiers as vf
 
 from literegistry_tool_client import PodmanExecutionClient, ToolClient
-from literegistry_tool_client.submission import SubmitToolClient
 
 from .articulated_harness_env import JTCArticulatedHarnessEnv
 from .jtc_tool_label_env import _load_dataset
-from .tool_protocol import GPTOSS_SUBMIT_TOOL, GPTOSS_TERMINAL_TOOL
+from .tool_protocol import GPTOSS_TERMINAL_TOOL
 
 
 DEFAULT_COMPLETION_MARKER = "TERMINAL_COMPLETE"
@@ -81,9 +80,9 @@ def podman_execution_failure(output: Mapping[str, Any]) -> str | None:
 class ContextBoundPodmanTerminalClient(ToolClient):
     """Dispatch terminal calls to the Podman session bound to this rollout."""
 
-    def __init__(self, *, command_timeout: float = 60) -> None:
-        if command_timeout <= 0:
-            raise ValueError("command_timeout must be positive")
+    def __init__(self, *, command_timeout: float = 300) -> None:
+        if not 0.1 <= command_timeout <= 300:
+            raise ValueError("command_timeout must be between 0.1 and 300 seconds")
         super().__init__(
             "context://podman-terminal-solver",
             timeout=command_timeout,
@@ -304,9 +303,9 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
         dataset: Dataset,
         podman_gateway_url: str = DEFAULT_PODMAN_GATEWAY_URL,
         podman_workdir: str = "/home/user",
-        command_timeout: float = 60,
-        request_timeout: float = 150,
-        handshake_timeout: float = 600,
+        command_timeout: float = 300,
+        request_timeout: float = 360,
+        handshake_timeout: float = 900,
         max_retries: int = 3,
         service: str = "podman",
         client_id_prefix: str = "primebeaker-solver",
@@ -314,7 +313,7 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
         reward_file_path: str = DEFAULT_REWARD_FILE_PATH,
         test_command: str = DEFAULT_TEST_COMMAND,
         test_file_path: str = DEFAULT_TEST_FILE_PATH,
-        test_timeout: float = 600,
+        test_timeout: float = 300,
         reward_file_weight: float = 1.0,
         verifier_reward_weight: float | None = None,
         termination_reward_weight: float = 0.1,
@@ -329,8 +328,8 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
             raise ValueError("podman_gateway_url must be non-empty")
         if not podman_workdir.strip():
             raise ValueError("podman_workdir must be non-empty")
-        if command_timeout <= 0:
-            raise ValueError("command_timeout must be positive")
+        if not 0.1 <= command_timeout <= 300:
+            raise ValueError("command_timeout must be between 0.1 and 300 seconds")
         if request_timeout <= 0 or handshake_timeout <= 0:
             raise ValueError("request timeouts must be positive")
         if max_retries < 1:
@@ -345,8 +344,8 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
             raise ValueError("test_command must be non-empty")
         if not test_file_path.strip():
             raise ValueError("test_file_path must be non-empty")
-        if test_timeout <= 0:
-            raise ValueError("test_timeout must be positive")
+        if not 0.1 <= test_timeout <= 300:
+            raise ValueError("test_timeout must be between 0.1 and 300 seconds")
         if verifier_reward_weight is not None:
             if reward_file_weight != 1.0:
                 raise ValueError(
@@ -395,10 +394,9 @@ class PodmanTerminalEnv(JTCArticulatedHarnessEnv):
             dataset=dataset,
             tool_clients={
                 "bash": self.podman_terminal_client,
-                "submit": SubmitToolClient(),
             },
-            tools=("bash", "submit"),
-            tool_defs=(bash_tool, GPTOSS_SUBMIT_TOOL),
+            tools=("bash",),
+            tool_defs=(bash_tool,),
             max_tool_calls=max_tool_calls,
             max_turns=max_turns,
             **kwargs,
