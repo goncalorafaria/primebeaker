@@ -855,7 +855,11 @@ async def run_verifier_tool_judge(
             "temperature": profile.temperature,
             "max_tokens": profile.max_tokens,
             "tool_choice": "auto" if tools else "none",
-            **({"extra_body": {"chat_template_kwargs": {"enable_thinking": True}}} if submit_mode else {}),
+            "extra_body": {
+                "chat_template_kwargs": {
+                    "enable_thinking": True if submit_mode else profile.enable_thinking,
+                }
+            },
         },
         batch_size=len(request.rubrics),
         stream_output_jsonl_path=None,
