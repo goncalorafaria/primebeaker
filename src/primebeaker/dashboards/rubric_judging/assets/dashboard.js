@@ -30,6 +30,20 @@ function render(s) {
     el('base').textContent = 'Not configured';
     el('basebatch').textContent = '';
   }
+  if (config.show_run_inference_cards) {
+    el('run-inference-cards').innerHTML = runs.map(run => {
+      const endpoints = (s.inference[run.id] || []).filter(e => e.available);
+      const state = runState(run.id);
+      const active = endpoints.reduce((sum, e) => sum + (e.active || 0), 0);
+      const queued = endpoints.reduce((sum, e) => sum + (e.queued || 0), 0);
+      const caches = endpoints.filter(e => e.kv_cache_percent_mean != null);
+      const cache = caches.length ? number(caches.reduce((sum, e) => sum + e.kv_cache_percent_mean, 0) / caches.length) + '%' : '—';
+      const rates = endpoints.filter(e => e.output_tokens_per_second != null);
+      const rate = rates.length ? number(rates.reduce((sum, e) => sum + e.output_tokens_per_second, 0)) : '—';
+      const engines = endpoints.reduce((sum, e) => sum + Object.keys(e.engines || {}).length, 0);
+      return '<div class="card"><div class="label" style="color:' + escape(run.color) + '">' + escape(run.label) + ' inference</div><div class="value">' + (endpoints.length ? number(active) + ' active' : escape(state)) + '</div><div class="detail">' + (endpoints.length ? number(queued) + ' queued · ' + engines + ' engines · KV ' + cache + ' · ' + rate + ' output tokens/s' : (state === 'queued' ? 'Waiting for allocation; no serving endpoint yet.' : 'No healthy inference metrics endpoint yet.')) + '</div></div>';
+    }).join('');
+  }
   const judges = (s.inference.judge || []).filter(e => e.available);
   el('replicas').textContent = judges.length + ' / ' + (s.judge_pool.requested ?? '—');
   el('load').textContent = judges.length ? number(judges.reduce((a, e) => a + e.active, 0)) + ' / ' + number(judges.reduce((a, e) => a + e.queued, 0)) : '—';
@@ -83,6 +97,11 @@ async function curves() {
       renderPlot(el('plot-' + suffix), series, {label: kind, scale, smoothingSteps: config.curve_smoothing_steps || 1});
       el('source-' + suffix).textContent = [...new Set(runs.map(r => data.runs[r.id]?.curves?.[kind]?.metric).filter(Boolean))].join(' · ');
     }
+    (config.curve_panels || []).forEach((panel, i) => {
+      const series = config.runs.map((run, j) => ({name: run.label, color: run.color || palette[j % palette.length], points: (data.runs[run.id]?.curves?.[panel.curve]?.points || []).filter(p => config.curve_max_step == null || p.step <= config.curve_max_step)}));
+      renderPlot(el('extra-curve-' + i), series, {label: panel.title, scale: panel.scale || 1, smoothingSteps: panel.smoothing_steps || 1});
+      el('extra-source-' + i).textContent = [...new Set(config.runs.map(run => data.runs[run.id]?.curves?.[panel.curve]?.metric).filter(Boolean))].join(' · ');
+    });
     el('curves-status').textContent = 'W&B checked ' + new Date(data.fetched_at).toLocaleString() + ' · ' + runs.map(run => run.label + ': ' + (data.runs[run.id]?.available ? (data.runs[run.id].historical ? 'saved baseline' : 'history loaded') : data.runs[run.id]?.curves ? 'cached history; refresh unavailable' : 'no history available yet')).join(' · ') + (config.curve_max_step == null ? '' : ' · shown through step ' + config.curve_max_step) + (config.curve_smoothing_steps > 1 ? ' · trailing ' + config.curve_smoothing_steps + '-step mean; faint raw values' : '');
   } catch (error) { el('curves-status').textContent = error.message; }
 }
@@ -146,6 +165,8 @@ async function start() {
     el('comparison-label').textContent = config.runs[1]?.label || 'Comparison policy';
     el('training-legend').innerHTML = [...config.runs, ...(config.baselines || [])].map((run, i) => '<span style="color:' + escape(run.color || palette[i % palette.length]) + '"><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2"' + (run.line_style === 'dashed' ? ' stroke-dasharray="6 4"' : '') + '/></svg> ' + escape(run.label) + '</span>').join('');
     el('curve-caveat').textContent = config.curve_caveat || '';
+    el('extra-curve-panels').innerHTML = (config.curve_panels || []).length ? '<h2>Validation</h2><div class="charts">' + config.curve_panels.map((panel, i) => '<section class="chart"><h3>' + escape(panel.title) + '</h3><div id="extra-curve-' + i + '"></div><div class="chart-caption" id="extra-source-' + i + '"></div><p class="muted">' + escape(panel.caption || '') + '</p></section>').join('') + '</div>' : '';
+
     el('refresh').onclick = () => { update(); curves(); servers(); evaluations(); };
     await update();
     curves();
